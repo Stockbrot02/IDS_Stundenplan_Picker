@@ -572,6 +572,10 @@
             background: var(--surface);
         }
 
+        .mobile-calendar {
+            display: none;
+        }
+
         .week-calendar {
             min-width: 1120px;
         }
@@ -708,6 +712,133 @@
             margin-top: 4px;
             color: var(--muted);
             font-size: 0.68rem;
+        }
+
+        .mobile-day-strip {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+            scrollbar-width: thin;
+        }
+
+        .mobile-day-button {
+            display: grid;
+            min-width: 78px;
+            min-height: 58px;
+            align-content: center;
+            gap: 3px;
+            padding: 8px;
+            text-align: left;
+        }
+
+        .mobile-day-button strong,
+        .mobile-day-button span {
+            display: block;
+        }
+
+        .mobile-day-button strong {
+            font-size: 0.88rem;
+        }
+
+        .mobile-day-button span {
+            color: var(--muted);
+            font-size: 0.76rem;
+        }
+
+        .mobile-day-button.is-today {
+            border-color: var(--primary);
+            color: var(--primary-dark);
+            background: var(--primary-soft);
+        }
+
+        .mobile-week-list {
+            display: grid;
+            gap: 12px;
+        }
+
+        .mobile-day-section {
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            background: var(--surface);
+            overflow: hidden;
+        }
+
+        .mobile-day-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            border-bottom: 1px solid var(--line);
+            padding: 10px 12px;
+            background: var(--surface-subtle);
+        }
+
+        .mobile-day-header h3 {
+            margin: 0;
+            font-size: 0.96rem;
+        }
+
+        .mobile-day-events {
+            display: grid;
+            gap: 8px;
+            padding: 10px;
+        }
+
+        .mobile-event-card {
+            display: grid;
+            grid-template-columns: minmax(68px, 82px) minmax(0, 1fr);
+            gap: 8px 10px;
+            width: 100%;
+            border: 1px solid var(--event-border);
+            border-left-width: 4px;
+            border-radius: var(--radius);
+            padding: 10px;
+            color: var(--ink);
+            background: var(--event-bg);
+            text-align: left;
+        }
+
+        .mobile-event-card.is-conflict {
+            --event-bg: var(--danger-soft);
+            --event-border: var(--danger);
+        }
+
+        .mobile-event-time {
+            color: var(--primary-dark);
+            font-size: 0.82rem;
+            font-weight: 700;
+            line-height: 1.3;
+        }
+
+        .mobile-event-body {
+            min-width: 0;
+        }
+
+        .mobile-event-body strong,
+        .mobile-event-body span {
+            display: block;
+            overflow-wrap: anywhere;
+        }
+
+        .mobile-event-body strong {
+            margin-bottom: 4px;
+            font-size: 0.9rem;
+            line-height: 1.25;
+        }
+
+        .mobile-event-meta {
+            color: var(--muted);
+            font-size: 0.8rem;
+            line-height: 1.35;
+        }
+
+        .mobile-empty-day {
+            margin: 0;
+            padding: 12px;
+            color: var(--muted);
+            font-size: 0.88rem;
         }
 
         .agenda {
@@ -853,6 +984,24 @@
             }
         }
 
+        @media (max-width: 700px) {
+            .calendar-scroll {
+                display: none;
+            }
+
+            .mobile-calendar {
+                display: block;
+            }
+
+            .calendar-toolbar h2 {
+                font-size: 1rem;
+            }
+
+            .calendar-summary {
+                font-size: 0.84rem;
+            }
+        }
+
         @media (max-width: 560px) {
             .app-header {
                 padding: 20px 14px;
@@ -965,6 +1114,7 @@
                 <div class="calendar-scroll">
                     <div id="weekCalendar" class="week-calendar"></div>
                 </div>
+                <div id="mobileCalendar" class="mobile-calendar" aria-label="Mobile Wochenansicht"></div>
             </div>
 
             <div id="listView" class="view">
@@ -1070,6 +1220,7 @@
                 els.calendarView = document.getElementById("calendarView");
                 els.listView = document.getElementById("listView");
                 els.weekCalendar = document.getElementById("weekCalendar");
+                els.mobileCalendar = document.getElementById("mobileCalendar");
                 els.agendaList = document.getElementById("agendaList");
                 els.calendarTab = document.getElementById("calendarTab");
                 els.listTab = document.getElementById("listTab");
@@ -1479,6 +1630,7 @@
 
                 if (!hasCalendar) {
                     els.weekCalendar.innerHTML = "";
+                    els.mobileCalendar.innerHTML = "";
                     els.agendaList.innerHTML = "";
                     els.calendarTitle.textContent = "Kalender";
                     els.calendarSummary.textContent = state.selectedModules.size ? "Kalender bauen, um die Auswahl anzuzeigen." : "Wähle Module aus und baue deinen Kalender.";
@@ -1505,6 +1657,7 @@
                 }
 
                 renderWeek(weekStart, weekEvents, selectedEvents);
+                renderMobileWeek(weekStart, weekEvents);
                 renderAgenda(selectedEvents);
             }
 
@@ -1589,6 +1742,93 @@
                 details.textContent = [event.lecturer, event.groups].filter(Boolean).join(" · ") || event.type;
                 card.append(title, time, details);
                 card.addEventListener("click", () => showEventDialog(event));
+                return card;
+            }
+
+            function renderMobileWeek(weekStart, weekEvents) {
+                const days = Array.from({ length: 7 }, (_, index) => addDays(weekStart, index));
+                const eventMap = new Map(days.map((day) => [toIsoDate(day), []]));
+                weekEvents.forEach((event) => eventMap.get(event.dateIso)?.push(event));
+
+                els.mobileCalendar.innerHTML = "";
+
+                const strip = document.createElement("div");
+                strip.className = "mobile-day-strip";
+                const list = document.createElement("div");
+                list.className = "mobile-week-list";
+                const todayIso = toIsoDate(new Date());
+
+                days.forEach((day) => {
+                    const dayIso = toIsoDate(day);
+                    const dayEvents = layoutDayEvents(eventMap.get(dayIso) || []).sort(compareEvents);
+                    const sectionId = `mobile-day-${dayIso}`;
+
+                    const dayButton = document.createElement("button");
+                    dayButton.type = "button";
+                    dayButton.className = `mobile-day-button${dayIso === todayIso ? " is-today" : ""}`;
+                    dayButton.setAttribute("aria-controls", sectionId);
+                    dayButton.setAttribute("aria-label", `${formatLongDate(day)}, ${formatTermCount(dayEvents.length)}`);
+                    const dayName = document.createElement("strong");
+                    dayName.textContent = WEEKDAYS[(day.getDay() + 6) % 7];
+                    const dayMeta = document.createElement("span");
+                    dayMeta.textContent = `${formatShortDate(day)} · ${dayEvents.length}`;
+                    dayButton.append(dayName, dayMeta);
+                    dayButton.addEventListener("click", () => {
+                        document.getElementById(sectionId)?.scrollIntoView({ block: "start", behavior: "smooth" });
+                    });
+                    strip.append(dayButton);
+
+                    const section = document.createElement("section");
+                    section.className = "mobile-day-section";
+                    section.id = sectionId;
+                    const header = document.createElement("header");
+                    header.className = "mobile-day-header";
+                    const title = document.createElement("h3");
+                    title.textContent = formatLongDate(day);
+                    const count = document.createElement("span");
+                    count.className = "metric";
+                    count.textContent = String(dayEvents.length);
+                    header.append(title, count);
+                    section.append(header);
+
+                    if (dayEvents.length) {
+                        const events = document.createElement("div");
+                        events.className = "mobile-day-events";
+                        dayEvents.forEach((event) => events.append(createMobileEventCard(event)));
+                        section.append(events);
+                    } else {
+                        const empty = document.createElement("p");
+                        empty.className = "mobile-empty-day";
+                        empty.textContent = "Keine Termine";
+                        section.append(empty);
+                    }
+
+                    list.append(section);
+                });
+
+                els.mobileCalendar.append(strip, list);
+            }
+
+            function createMobileEventCard(event) {
+                const card = document.createElement("button");
+                card.type = "button";
+                card.className = `mobile-event-card${event.hasConflict ? " is-conflict" : ""}`;
+                card.addEventListener("click", () => showEventDialog(event));
+
+                const time = document.createElement("span");
+                time.className = "mobile-event-time";
+                time.textContent = `${event.start} - ${event.end}`;
+
+                const body = document.createElement("span");
+                body.className = "mobile-event-body";
+                const title = document.createElement("strong");
+                title.textContent = event.course;
+                const meta = document.createElement("span");
+                meta.className = "mobile-event-meta";
+                meta.textContent = [event.room || "Raum offen", event.lecturer, event.groups].filter(Boolean).join(" · ");
+                body.append(title, meta);
+
+                card.append(time, body);
                 return card;
             }
 
