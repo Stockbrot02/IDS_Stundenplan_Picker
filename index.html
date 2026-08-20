@@ -352,7 +352,6 @@
         input:focus,
         button:focus-visible,
         a:focus-visible,
-        .file-picker:focus-within,
         .module-option:focus-within,
         .event-card:focus-visible {
             outline: 3px solid var(--focus-ring);
@@ -365,28 +364,6 @@
 
         .input-row input {
             min-width: 0;
-        }
-
-        .file-picker {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 42px;
-            margin: 14px 0 0;
-            border: 1px dashed var(--line-strong);
-            border-radius: var(--radius);
-            color: var(--primary-dark);
-            background: var(--primary-soft);
-            font-weight: 700;
-            cursor: pointer;
-        }
-
-        .file-picker input {
-            position: absolute;
-            width: 1px;
-            height: 1px;
-            overflow: hidden;
-            clip: rect(0, 0, 0, 0);
         }
 
         .module-search {
@@ -927,11 +904,6 @@
                 </div>
 
                 <input id="proxyPrefix" type="hidden">
-
-                <label class="file-picker" for="fileInput">
-                    HTML-Datei laden
-                    <input id="fileInput" type="file" accept=".html,.htm,text/html">
-                </label>
             </section>
 
             <section class="control-section">
@@ -1076,7 +1048,6 @@
                 els.scheduleUrl = document.getElementById("scheduleUrl");
                 els.loadUrlButton = document.getElementById("loadUrlButton");
                 els.proxyPrefix = document.getElementById("proxyPrefix");
-                els.fileInput = document.getElementById("fileInput");
                 els.moduleCount = document.getElementById("moduleCount");
                 els.selectionSummary = document.getElementById("selectionSummary");
                 els.moduleSearch = document.getElementById("moduleSearch");
@@ -1118,7 +1089,6 @@
                 els.proxyPrefix.addEventListener("change", () => {
                     writeStorage(STORAGE_KEYS.proxy, els.proxyPrefix.value.trim());
                 });
-                els.fileInput.addEventListener("change", loadFileSchedule);
                 els.moduleSearch.addEventListener("input", renderModuleList);
                 els.selectVisibleButton.addEventListener("click", selectVisibleModules);
                 els.clearSelectionButton.addEventListener("click", clearSelection);
@@ -1179,7 +1149,7 @@
                         renderModuleList();
                         renderCalendar();
                     }
-                    setSourceStatus("Stundenplan konnte nicht automatisch geladen werden. HTML-Datei laden oder später erneut versuchen.", "error");
+                    setSourceStatus("Stundenplan konnte nicht automatisch geladen werden. Bitte später erneut versuchen.", "error");
                     console.warn(error);
                 } finally {
                     setLoading(false);
@@ -1235,23 +1205,6 @@
 
             function looksLikeSkedPage(html) {
                 return /<table[^>]+class=['"]tbl/i.test(html) && /Veranstaltung/i.test(html);
-            }
-
-            async function loadFileSchedule(event) {
-                const file = event.target.files[0];
-                if (!file) return;
-
-                setLoading(true);
-                try {
-                    const html = await file.text();
-                    consumeSchedule(html, file.name, "Datei");
-                } catch (error) {
-                    setSourceStatus("Die Datei konnte nicht gelesen werden.", "error");
-                    console.warn(error);
-                } finally {
-                    setLoading(false);
-                    event.target.value = "";
-                }
             }
 
             function consumeSchedule(html, label, via) {
