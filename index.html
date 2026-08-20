@@ -2,13 +2,1779 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>Test GitHub Pages</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stundenplan Picker</title>
+    <style>
+        :root {
+            --bg: #f6f7f9;
+            --surface: #ffffff;
+            --surface-muted: #eef2f3;
+            --ink: #17212b;
+            --muted: #62707c;
+            --line: #d8dee4;
+            --line-strong: #b9c3cc;
+            --primary: #006b5f;
+            --primary-dark: #004f48;
+            --primary-soft: #e1f2ef;
+            --warning: #996200;
+            --warning-soft: #fff4d8;
+            --danger: #9c2f3b;
+            --danger-soft: #ffe6e9;
+            --focus: #2f5ea8;
+            --shadow: 0 18px 45px rgba(23, 33, 43, 0.08);
+            --radius: 8px;
+            --font: Arial, Helvetica, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            margin: 0;
+            color: var(--ink);
+            background: var(--bg);
+            font-family: var(--font);
+        }
+
+        button,
+        input {
+            font: inherit;
+        }
+
+        button {
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            color: var(--ink);
+            background: var(--surface);
+            cursor: pointer;
+            transition: border-color 150ms ease, background 150ms ease, color 150ms ease, transform 150ms ease;
+        }
+
+        button:hover:not(:disabled) {
+            border-color: var(--line-strong);
+            background: var(--surface-muted);
+        }
+
+        button:active:not(:disabled) {
+            transform: translateY(1px);
+        }
+
+        button:disabled {
+            cursor: not-allowed;
+            opacity: 0.55;
+        }
+
+        a {
+            color: var(--primary);
+        }
+
+        .app-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 24px;
+            padding: 24px clamp(18px, 4vw, 48px);
+            border-bottom: 1px solid var(--line);
+            background: var(--surface);
+        }
+
+        .app-header > div:first-child {
+            min-width: 0;
+        }
+
+        .eyebrow {
+            margin: 0 0 5px;
+            color: var(--primary);
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0;
+            text-transform: uppercase;
+        }
+
+        h1,
+        h2,
+        h3,
+        p {
+            margin-top: 0;
+        }
+
+        h1 {
+            margin-bottom: 8px;
+            font-size: clamp(1.75rem, 3vw, 2.45rem);
+            line-height: 1.08;
+            letter-spacing: 0;
+        }
+
+        h2 {
+            margin-bottom: 4px;
+            font-size: 1.05rem;
+            letter-spacing: 0;
+        }
+
+        .status-line {
+            max-width: 760px;
+            margin-bottom: 0;
+            color: var(--muted);
+            font-size: 0.94rem;
+            line-height: 1.45;
+            overflow-wrap: anywhere;
+        }
+
+        .status-line[data-tone="error"] {
+            color: var(--danger);
+        }
+
+        .status-line[data-tone="ok"] {
+            color: var(--primary-dark);
+        }
+
+        .header-actions,
+        .button-row,
+        .toolbar-actions,
+        .input-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .header-actions {
+            flex-wrap: wrap;
+            flex-shrink: 0;
+            justify-content: flex-end;
+        }
+
+        .link-button,
+        .small-button,
+        .icon-button,
+        .primary-action {
+            min-height: 38px;
+            padding: 0 13px;
+            text-decoration: none;
+        }
+
+        .link-button {
+            display: inline-flex;
+            align-items: center;
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            color: var(--ink);
+            background: var(--surface);
+        }
+
+        .primary-action {
+            width: 100%;
+            min-height: 46px;
+            position: sticky;
+            bottom: 14px;
+            z-index: 5;
+            border-color: var(--primary-dark);
+            color: #ffffff;
+            background: var(--primary);
+            font-weight: 700;
+            box-shadow: 0 10px 24px rgba(0, 79, 72, 0.22);
+        }
+
+        .primary-action:hover:not(:disabled) {
+            border-color: var(--primary-dark);
+            color: #ffffff;
+            background: var(--primary-dark);
+        }
+
+        .icon-button {
+            min-width: 38px;
+            padding: 0 11px;
+        }
+
+        .app-shell {
+            display: grid;
+            grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+            gap: 22px;
+            padding: 22px clamp(14px, 3vw, 34px) 34px;
+        }
+
+        .selection-panel,
+        .calendar-panel {
+            min-width: 0;
+        }
+
+        .selection-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        .control-section,
+        .calendar-panel {
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            background: var(--surface);
+            box-shadow: var(--shadow);
+        }
+
+        .control-section {
+            padding: 16px;
+        }
+
+        .calendar-panel {
+            padding: 18px;
+        }
+
+        .section-title,
+        .calendar-toolbar {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 14px;
+        }
+
+        .calendar-toolbar {
+            margin-bottom: 14px;
+        }
+
+        .metric {
+            display: inline-flex;
+            min-width: 36px;
+            justify-content: center;
+            border-radius: 999px;
+            padding: 3px 9px;
+            color: var(--primary-dark);
+            background: var(--primary-soft);
+            font-size: 0.82rem;
+            font-weight: 700;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            color: var(--muted);
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+
+        input[type="search"],
+        input[type="url"],
+        input[type="text"] {
+            width: 100%;
+            min-height: 40px;
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            padding: 0 12px;
+            color: var(--ink);
+            background: var(--surface);
+        }
+
+        input:focus,
+        button:focus-visible,
+        a:focus-visible,
+        .file-picker:focus-within,
+        .module-option:focus-within,
+        .event-card:focus-visible {
+            outline: 3px solid rgba(47, 94, 168, 0.23);
+            outline-offset: 2px;
+        }
+
+        .input-row {
+            align-items: stretch;
+        }
+
+        .input-row input {
+            min-width: 0;
+        }
+
+        .source-details {
+            margin-top: 12px;
+            color: var(--muted);
+            font-size: 0.86rem;
+        }
+
+        .source-details summary {
+            cursor: pointer;
+            font-weight: 700;
+        }
+
+        .source-details label {
+            margin-top: 12px;
+        }
+
+        .file-picker {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 42px;
+            margin: 14px 0 0;
+            border: 1px dashed var(--line-strong);
+            border-radius: var(--radius);
+            color: var(--primary-dark);
+            background: var(--primary-soft);
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .file-picker input {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+        }
+
+        .module-search {
+            margin: 8px 0 10px;
+        }
+
+        .button-row {
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+
+        .small-button {
+            min-height: 34px;
+            font-size: 0.86rem;
+        }
+
+        .module-list {
+            display: grid;
+            gap: 8px;
+            max-height: min(46vh, 560px);
+            overflow: auto;
+            padding-right: 4px;
+        }
+
+        .module-option {
+            display: grid;
+            grid-template-columns: 20px 10px minmax(0, 1fr);
+            gap: 10px;
+            align-items: start;
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            padding: 10px;
+            background: var(--surface);
+        }
+
+        .module-option input {
+            margin: 2px 0 0;
+        }
+
+        .module-dot {
+            width: 10px;
+            height: 10px;
+            margin-top: 5px;
+            border-radius: 50%;
+            background: var(--primary);
+        }
+
+        .module-name {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 0.93rem;
+            font-weight: 700;
+            line-height: 1.25;
+            overflow-wrap: anywhere;
+        }
+
+        .module-meta {
+            display: block;
+            color: var(--muted);
+            font-size: 0.79rem;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+        }
+
+        .tabs {
+            display: inline-flex;
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            overflow: hidden;
+            background: var(--surface);
+        }
+
+        .tab-button {
+            min-height: 36px;
+            border: 0;
+            border-radius: 0;
+            padding: 0 12px;
+            color: var(--muted);
+            background: transparent;
+        }
+
+        .tab-button[aria-selected="true"] {
+            color: #ffffff;
+            background: var(--ink);
+        }
+
+        .toolbar-actions {
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .calendar-summary {
+            margin-bottom: 0;
+            color: var(--muted);
+            font-size: 0.9rem;
+            line-height: 1.4;
+            overflow-wrap: anywhere;
+        }
+
+        .notice {
+            display: none;
+            margin: 0 0 14px;
+            border: 1px solid var(--warning);
+            border-radius: var(--radius);
+            padding: 10px 12px;
+            color: var(--warning);
+            background: var(--warning-soft);
+            font-size: 0.9rem;
+        }
+
+        .notice.is-visible {
+            display: block;
+        }
+
+        .empty-state {
+            display: grid;
+            min-height: 420px;
+            place-items: center;
+            border: 1px dashed var(--line-strong);
+            border-radius: var(--radius);
+            color: var(--muted);
+            text-align: center;
+            padding: 30px;
+        }
+
+        .empty-state strong {
+            display: block;
+            margin-bottom: 6px;
+            color: var(--ink);
+            font-size: 1.08rem;
+        }
+
+        .view {
+            display: none;
+        }
+
+        .view.is-active {
+            display: block;
+        }
+
+        .calendar-scroll {
+            overflow-x: auto;
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            background: var(--surface);
+        }
+
+        .week-calendar {
+            min-width: 1120px;
+        }
+
+        .week-header,
+        .week-body {
+            display: grid;
+            grid-template-columns: 72px repeat(7, minmax(145px, 1fr));
+        }
+
+        .week-header {
+            position: sticky;
+            top: 0;
+            z-index: 3;
+            border-bottom: 1px solid var(--line);
+            background: var(--surface);
+        }
+
+        .time-spacer,
+        .day-heading {
+            min-height: 58px;
+            padding: 10px;
+        }
+
+        .time-spacer {
+            border-right: 1px solid var(--line);
+            color: var(--muted);
+            font-size: 0.78rem;
+        }
+
+        .day-heading {
+            border-right: 1px solid var(--line);
+        }
+
+        .day-heading:last-child {
+            border-right: 0;
+        }
+
+        .day-heading strong,
+        .day-heading span {
+            display: block;
+        }
+
+        .day-heading strong {
+            margin-bottom: 2px;
+            font-size: 0.93rem;
+        }
+
+        .day-heading span {
+            color: var(--muted);
+            font-size: 0.78rem;
+        }
+
+        .day-heading.is-today {
+            color: var(--primary-dark);
+            background: var(--primary-soft);
+        }
+
+        .time-axis,
+        .day-column {
+            position: relative;
+            min-height: 360px;
+        }
+
+        .time-axis {
+            border-right: 1px solid var(--line);
+            background: #fbfcfc;
+        }
+
+        .hour-label {
+            position: absolute;
+            right: 9px;
+            transform: translateY(-50%);
+            color: var(--muted);
+            font-size: 0.76rem;
+        }
+
+        .day-column {
+            border-right: 1px solid var(--line);
+            background-image: repeating-linear-gradient(
+                to bottom,
+                transparent 0,
+                transparent 59px,
+                rgba(216, 222, 228, 0.9) 60px
+            );
+        }
+
+        .day-column:last-child {
+            border-right: 0;
+        }
+
+        .event-card {
+            position: absolute;
+            z-index: 1;
+            overflow: hidden;
+            border: 1px solid var(--event-border, var(--primary));
+            border-radius: var(--radius);
+            padding: 8px;
+            color: var(--ink);
+            background: var(--event-bg, var(--primary-soft));
+            text-align: left;
+            box-shadow: 0 8px 18px rgba(23, 33, 43, 0.08);
+        }
+
+        .event-card:hover {
+            z-index: 2;
+        }
+
+        .event-card strong,
+        .event-card span,
+        .event-card small {
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .event-card strong {
+            margin-bottom: 5px;
+            font-size: 0.78rem;
+            line-height: 1.2;
+        }
+
+        .event-card span {
+            font-size: 0.72rem;
+        }
+
+        .event-card small {
+            margin-top: 4px;
+            color: var(--muted);
+            font-size: 0.68rem;
+        }
+
+        .agenda {
+            display: grid;
+            gap: 12px;
+        }
+
+        .day-agenda {
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            background: var(--surface);
+        }
+
+        .day-agenda header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            border-bottom: 1px solid var(--line);
+            padding: 10px 12px;
+            background: #fbfcfc;
+        }
+
+        .day-agenda h3 {
+            margin: 0;
+            font-size: 0.96rem;
+        }
+
+        .agenda-event {
+            display: grid;
+            grid-template-columns: 100px minmax(0, 1fr);
+            gap: 12px;
+            width: 100%;
+            border: 0;
+            border-bottom: 1px solid var(--line);
+            border-radius: 0;
+            padding: 12px;
+            background: transparent;
+            text-align: left;
+        }
+
+        .agenda-event:hover {
+            background: var(--surface-muted);
+        }
+
+        .agenda-event:last-child {
+            border-bottom: 0;
+        }
+
+        .agenda-time {
+            color: var(--primary-dark);
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .agenda-title {
+            margin-bottom: 5px;
+            font-weight: 700;
+        }
+
+        .agenda-meta {
+            color: var(--muted);
+            font-size: 0.86rem;
+            line-height: 1.45;
+            overflow-wrap: anywhere;
+        }
+
+        dialog {
+            width: min(520px, calc(100vw - 32px));
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            padding: 0;
+            color: var(--ink);
+            box-shadow: var(--shadow);
+        }
+
+        dialog::backdrop {
+            background: rgba(23, 33, 43, 0.32);
+        }
+
+        .dialog-header {
+            display: flex;
+            align-items: start;
+            justify-content: space-between;
+            gap: 12px;
+            border-bottom: 1px solid var(--line);
+            padding: 16px;
+        }
+
+        .dialog-header h3 {
+            margin: 0;
+            font-size: 1.08rem;
+        }
+
+        .dialog-body {
+            padding: 16px;
+        }
+
+        .event-details {
+            display: grid;
+            grid-template-columns: 110px minmax(0, 1fr);
+            gap: 9px 12px;
+            margin: 0;
+        }
+
+        .event-details dt {
+            color: var(--muted);
+            font-weight: 700;
+        }
+
+        .event-details dd {
+            margin: 0;
+            overflow-wrap: anywhere;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        @media (max-width: 980px) {
+            .app-header,
+            .app-shell {
+                display: block;
+            }
+
+            .header-actions {
+                justify-content: flex-start;
+                margin-top: 16px;
+            }
+
+            .selection-panel {
+                margin-bottom: 18px;
+            }
+
+            .calendar-toolbar {
+                display: block;
+            }
+
+            .toolbar-actions {
+                justify-content: flex-start;
+                margin-top: 12px;
+            }
+        }
+
+        @media (max-width: 560px) {
+            .app-header {
+                padding: 20px 14px;
+            }
+
+            .app-shell {
+                padding: 14px;
+            }
+
+            .input-row {
+                display: grid;
+            }
+
+            .calendar-panel,
+            .control-section {
+                padding: 14px;
+            }
+
+            .agenda-event {
+                grid-template-columns: 1fr;
+                gap: 5px;
+            }
+        }
+    </style>
 </head>
 <body>
+    <header class="app-header">
+        <div>
+            <p class="eyebrow">Hochschule Osnabrück</p>
+            <h1>Stundenplan Picker</h1>
+            <p id="sourceStatus" class="status-line" data-tone="muted">Stundenplan wird geladen...</p>
+        </div>
+        <div class="header-actions">
+            <a class="link-button" href="https://sked.lin.hs-osnabrueck.de/sked/jg/24VTS.html" target="_blank" rel="noopener">Quelle öffnen</a>
+            <button id="reloadButton" class="small-button" type="button">Aktualisieren</button>
+        </div>
+    </header>
 
-    <h1>Hallo Welt!</h1>
+    <main class="app-shell">
+        <aside class="selection-panel" aria-label="Auswahl">
+            <section class="control-section">
+                <label for="scheduleUrl">Stundenplan-URL</label>
+                <div class="input-row">
+                    <input id="scheduleUrl" type="url" autocomplete="url" spellcheck="false">
+                    <button id="loadUrlButton" class="small-button" type="button">Laden</button>
+                </div>
 
-    <p>Test</p>
+                <details class="source-details">
+                    <summary>Proxy</summary>
+                    <label for="proxyPrefix">Proxy-Präfix</label>
+                    <input id="proxyPrefix" type="text" spellcheck="false" placeholder="Automatisch: https://proxy.cors.sh/">
+                </details>
 
+                <label class="file-picker" for="fileInput">
+                    HTML-Datei laden
+                    <input id="fileInput" type="file" accept=".html,.htm,text/html">
+                </label>
+            </section>
+
+            <section class="control-section">
+                <div class="section-title">
+                    <div>
+                        <h2>Module</h2>
+                        <p class="calendar-summary" id="selectionSummary">Noch keine Daten geladen.</p>
+                    </div>
+                    <span id="moduleCount" class="metric">0</span>
+                </div>
+
+                <input id="moduleSearch" class="module-search" type="search" placeholder="Modul, Dozent, Gruppe oder Raum suchen" autocomplete="off">
+
+                <div class="button-row">
+                    <button id="selectVisibleButton" class="small-button" type="button">Sichtbare wählen</button>
+                    <button id="clearSelectionButton" class="small-button" type="button">Auswahl leeren</button>
+                </div>
+
+                <div id="moduleList" class="module-list" aria-live="polite"></div>
+            </section>
+
+            <button id="buildButton" class="primary-action" type="button" disabled>Kalender bauen</button>
+        </aside>
+
+        <section class="calendar-panel" aria-label="Kalender">
+            <div class="calendar-toolbar">
+                <div>
+                    <h2 id="calendarTitle">Kalender</h2>
+                    <p id="calendarSummary" class="calendar-summary">Wähle Module aus und baue deinen Kalender.</p>
+                </div>
+                <div class="toolbar-actions">
+                    <button id="previousWeekButton" class="icon-button" type="button" title="Vorherige Woche" aria-label="Vorherige Woche">‹</button>
+                    <button id="todayButton" class="small-button" type="button">Heute</button>
+                    <button id="nextWeekButton" class="icon-button" type="button" title="Nächste Woche" aria-label="Nächste Woche">›</button>
+                    <button id="exportButton" class="small-button" type="button" disabled>ICS exportieren</button>
+                    <div class="tabs" role="tablist" aria-label="Ansicht">
+                        <button id="calendarTab" class="tab-button" type="button" role="tab" aria-selected="true" data-view="calendar">Woche</button>
+                        <button id="listTab" class="tab-button" type="button" role="tab" aria-selected="false" data-view="list">Liste</button>
+                    </div>
+                </div>
+            </div>
+
+            <p id="notice" class="notice"></p>
+
+            <div id="emptyState" class="empty-state">
+                <div>
+                    <strong>Noch kein Kalender</strong>
+                    <span>Die ausgewählten Module erscheinen hier.</span>
+                </div>
+            </div>
+
+            <div id="calendarView" class="view is-active">
+                <div class="calendar-scroll">
+                    <div id="weekCalendar" class="week-calendar"></div>
+                </div>
+            </div>
+
+            <div id="listView" class="view">
+                <div id="agendaList" class="agenda"></div>
+            </div>
+        </section>
+    </main>
+
+    <dialog id="eventDialog">
+        <div class="dialog-header">
+            <h3 id="dialogTitle"></h3>
+            <button id="closeDialogButton" class="icon-button" type="button" title="Schließen" aria-label="Schließen">×</button>
+        </div>
+        <div class="dialog-body">
+            <dl id="dialogDetails" class="event-details"></dl>
+        </div>
+    </dialog>
+
+    <script>
+        (() => {
+            const DEFAULT_URL = "https://sked.lin.hs-osnabrueck.de/sked/jg/24VTS.html";
+            const DEFAULT_PROXY_PREFIX = "https://proxy.cors.sh/";
+            const PIXELS_PER_MINUTE = 1;
+            const STORAGE_KEYS = {
+                url: "stundenplan-picker:url",
+                proxy: "stundenplan-picker:proxy",
+                selection: "stundenplan-picker:selection"
+            };
+            const COLOR_PALETTE = [
+                ["#e1f2ef", "#006b5f"],
+                ["#eaf0fb", "#2f5ea8"],
+                ["#fff4d8", "#996200"],
+                ["#ffe6e9", "#9c2f3b"],
+                ["#edf6de", "#54731f"],
+                ["#f0eafb", "#6a4aa3"],
+                ["#e6f4fb", "#19718e"],
+                ["#f9e9dc", "#9a5426"],
+                ["#ecf0f1", "#51606c"],
+                ["#fbe7f0", "#a13268"]
+            ];
+            const WEEKDAYS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
+            const MONTHS = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
+
+            const state = {
+                events: [],
+                modules: [],
+                selectedModules: new Set(),
+                renderedModules: new Set(),
+                visibleWeekStart: null,
+                activeView: "calendar",
+                lastLoadedLabel: "",
+                lastLoadedVia: "",
+                pendingSelection: [],
+                autoBuild: false
+            };
+
+            const els = {};
+
+            document.addEventListener("DOMContentLoaded", init);
+
+            function init() {
+                cacheElements();
+                bindEvents();
+                const params = new URLSearchParams(window.location.search);
+                els.scheduleUrl.value = params.get("source") || readStorage(STORAGE_KEYS.url, DEFAULT_URL);
+                els.proxyPrefix.value = params.get("proxy") || readStorage(STORAGE_KEYS.proxy, "");
+                state.pendingSelection = params.getAll("select").flatMap((value) => value.split(",")).map((value) => value.trim()).filter(Boolean);
+                state.autoBuild = params.get("build") === "1";
+                loadRemoteSchedule();
+            }
+
+            function cacheElements() {
+                els.sourceStatus = document.getElementById("sourceStatus");
+                els.reloadButton = document.getElementById("reloadButton");
+                els.scheduleUrl = document.getElementById("scheduleUrl");
+                els.loadUrlButton = document.getElementById("loadUrlButton");
+                els.proxyPrefix = document.getElementById("proxyPrefix");
+                els.fileInput = document.getElementById("fileInput");
+                els.moduleCount = document.getElementById("moduleCount");
+                els.selectionSummary = document.getElementById("selectionSummary");
+                els.moduleSearch = document.getElementById("moduleSearch");
+                els.selectVisibleButton = document.getElementById("selectVisibleButton");
+                els.clearSelectionButton = document.getElementById("clearSelectionButton");
+                els.moduleList = document.getElementById("moduleList");
+                els.buildButton = document.getElementById("buildButton");
+                els.calendarTitle = document.getElementById("calendarTitle");
+                els.calendarSummary = document.getElementById("calendarSummary");
+                els.previousWeekButton = document.getElementById("previousWeekButton");
+                els.todayButton = document.getElementById("todayButton");
+                els.nextWeekButton = document.getElementById("nextWeekButton");
+                els.exportButton = document.getElementById("exportButton");
+                els.notice = document.getElementById("notice");
+                els.emptyState = document.getElementById("emptyState");
+                els.calendarView = document.getElementById("calendarView");
+                els.listView = document.getElementById("listView");
+                els.weekCalendar = document.getElementById("weekCalendar");
+                els.agendaList = document.getElementById("agendaList");
+                els.calendarTab = document.getElementById("calendarTab");
+                els.listTab = document.getElementById("listTab");
+                els.eventDialog = document.getElementById("eventDialog");
+                els.dialogTitle = document.getElementById("dialogTitle");
+                els.dialogDetails = document.getElementById("dialogDetails");
+                els.closeDialogButton = document.getElementById("closeDialogButton");
+            }
+
+            function bindEvents() {
+                els.reloadButton.addEventListener("click", loadRemoteSchedule);
+                els.loadUrlButton.addEventListener("click", loadRemoteSchedule);
+                els.scheduleUrl.addEventListener("change", loadRemoteSchedule);
+                els.proxyPrefix.addEventListener("change", () => {
+                    writeStorage(STORAGE_KEYS.proxy, els.proxyPrefix.value.trim());
+                });
+                els.fileInput.addEventListener("change", loadFileSchedule);
+                els.moduleSearch.addEventListener("input", renderModuleList);
+                els.selectVisibleButton.addEventListener("click", selectVisibleModules);
+                els.clearSelectionButton.addEventListener("click", clearSelection);
+                els.buildButton.addEventListener("click", buildCalendar);
+                els.previousWeekButton.addEventListener("click", () => shiftWeek(-1));
+                els.nextWeekButton.addEventListener("click", () => shiftWeek(1));
+                els.todayButton.addEventListener("click", jumpToToday);
+                els.exportButton.addEventListener("click", exportIcs);
+                els.calendarTab.addEventListener("click", () => switchView("calendar"));
+                els.listTab.addEventListener("click", () => switchView("list"));
+                els.closeDialogButton.addEventListener("click", () => els.eventDialog.close());
+            }
+
+            async function loadRemoteSchedule() {
+                const sourceUrl = els.scheduleUrl.value.trim() || DEFAULT_URL;
+                const proxyPrefix = els.proxyPrefix.value.trim();
+                writeStorage(STORAGE_KEYS.url, sourceUrl);
+                writeStorage(STORAGE_KEYS.proxy, proxyPrefix);
+                setSourceStatus("Stundenplan wird geladen...", "muted");
+                setLoading(true);
+
+                try {
+                    const result = await fetchSchedule(sourceUrl, proxyPrefix);
+                    consumeSchedule(result.html, sourceUrl, result.via);
+                } catch (error) {
+                    if (!state.events.length) {
+                        state.modules = [];
+                        state.selectedModules.clear();
+                        state.renderedModules.clear();
+                        renderModuleList();
+                        renderCalendar();
+                    }
+                    setSourceStatus("Direkter Abruf und Proxy-Fallback sind nicht erreichbar. HTML-Datei laden oder ein eigenes Proxy-Präfix eintragen.", "error");
+                    console.warn(error);
+                } finally {
+                    setLoading(false);
+                }
+            }
+
+            async function fetchSchedule(sourceUrl, proxyPrefix) {
+                const attempts = [{ via: "Direktabruf", url: sourceUrl }];
+                if (proxyPrefix) {
+                    attempts.push({ via: "Eigener Proxy", url: buildProxyUrl(proxyPrefix, sourceUrl) });
+                }
+                attempts.push({ via: "Automatischer Proxy", url: DEFAULT_PROXY_PREFIX + sourceUrl });
+
+                let lastError = null;
+                for (const attempt of attempts) {
+                    try {
+                        const response = await fetchWithTimeout(attempt.url, { cache: "no-store" }, 15000);
+                        if (!response.ok) {
+                            throw new Error(`${attempt.via}: HTTP ${response.status}`);
+                        }
+                        const html = await response.text();
+                        if (!looksLikeSkedPage(html)) {
+                            throw new Error(`${attempt.via}: Die Antwort sieht nicht wie ein sked-Stundenplan aus.`);
+                        }
+                        return { html, via: attempt.via };
+                    } catch (error) {
+                        lastError = error;
+                    }
+                }
+
+                throw lastError || new Error("Kein Abrufversuch möglich.");
+            }
+
+            function buildProxyUrl(prefix, sourceUrl) {
+                if (prefix.includes("{url}")) {
+                    return prefix.replaceAll("{url}", encodeURIComponent(sourceUrl));
+                }
+
+                if (/[?&](url|quest)=$/i.test(prefix)) {
+                    return prefix + encodeURIComponent(sourceUrl);
+                }
+
+                return prefix + sourceUrl;
+            }
+
+            function fetchWithTimeout(url, options, timeoutMs) {
+                const controller = new AbortController();
+                const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+                return fetch(url, { ...options, signal: controller.signal }).finally(() => {
+                    window.clearTimeout(timeout);
+                });
+            }
+
+            function looksLikeSkedPage(html) {
+                return /<table[^>]+class=['"]tbl/i.test(html) && /Veranstaltung/i.test(html);
+            }
+
+            async function loadFileSchedule(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                setLoading(true);
+                try {
+                    const html = await file.text();
+                    consumeSchedule(html, file.name, "Datei");
+                } catch (error) {
+                    setSourceStatus("Die Datei konnte nicht gelesen werden.", "error");
+                    console.warn(error);
+                } finally {
+                    setLoading(false);
+                    event.target.value = "";
+                }
+            }
+
+            function consumeSchedule(html, label, via) {
+                const parsed = parseSchedule(html);
+                if (!parsed.events.length) {
+                    throw new Error("Keine Veranstaltungen im Stundenplan gefunden.");
+                }
+
+                state.events = parsed.events;
+                state.modules = buildModules(parsed.events);
+                state.lastLoadedLabel = label;
+                state.lastLoadedVia = via;
+                restoreSelection();
+                applyPendingSelection();
+                state.renderedModules = state.autoBuild && state.selectedModules.size
+                    ? new Set(state.selectedModules)
+                    : new Set([...state.renderedModules].filter((name) => state.selectedModules.has(name)));
+                state.visibleWeekStart = chooseInitialWeek(getRenderedEvents()) || chooseInitialWeek(state.events);
+
+                renderModuleList();
+                updateBuildButton();
+                renderCalendar();
+
+                const meta = [parsed.title, parsed.stand ? `Stand: ${parsed.stand}` : "", `${parsed.events.length} Termine`, via].filter(Boolean).join(" · ");
+                setSourceStatus(meta, "ok");
+            }
+
+            function parseSchedule(html) {
+                const doc = new DOMParser().parseFromString(html, "text/html");
+                const title = cleanText(doc.querySelector(".w1")?.textContent || doc.querySelector("title")?.textContent || "Stundenplan");
+                const stand = html.match(/Stand:\s*([0-9]{2}\.[0-9]{2}\.[0-9]{4},\s*[0-9]{1,2}:[0-9]{2}\s*Uhr)/)?.[1] || "";
+                const rows = [...doc.querySelectorAll("table.tbl tr")];
+                const events = [];
+                let currentDateText = "";
+
+                rows.forEach((row) => {
+                    if (!/^zf/i.test(row.id || "")) return;
+                    const cells = [...row.querySelectorAll("td")];
+                    if (cells.length < 16) return;
+
+                    const dateText = cleanText(cells[0].textContent);
+                    if (dateText) currentDateText = dateText;
+                    const date = parseGermanDate(currentDateText);
+                    const start = readTime(cells[2].textContent);
+                    const end = readTime(cells[3].textContent);
+                    const course = cleanText(cells[9].textContent);
+                    if (!date || !start || !end || !course) return;
+
+                    const event = {
+                        id: row.id,
+                        date,
+                        dateIso: toIsoDate(date),
+                        dayLabel: formatLongDate(date),
+                        weekday: WEEKDAYS[(date.getDay() + 6) % 7],
+                        start,
+                        end,
+                        startMinutes: timeToMinutes(start),
+                        endMinutes: timeToMinutes(end),
+                        type: cleanText(cells[7].textContent),
+                        course,
+                        lecturer: cleanText(cells[11].textContent),
+                        room: cleanText(cells[13].textContent),
+                        groups: cleanText(cells[15].textContent),
+                        duration: cleanText(cells[5].textContent)
+                    };
+                    events.push(event);
+                });
+
+                events.sort(compareEvents);
+                return { title, stand, events };
+            }
+
+            function buildModules(events) {
+                const map = new Map();
+                events.forEach((event) => {
+                    if (!map.has(event.course)) {
+                        map.set(event.course, {
+                            name: event.course,
+                            count: 0,
+                            firstDate: event.dateIso,
+                            groups: new Set(),
+                            lecturers: new Set(),
+                            rooms: new Set(),
+                            colorIndex: map.size % COLOR_PALETTE.length
+                        });
+                    }
+                    const module = map.get(event.course);
+                    module.count += 1;
+                    module.firstDate = module.firstDate < event.dateIso ? module.firstDate : event.dateIso;
+                    splitList(event.groups).forEach((group) => module.groups.add(group));
+                    splitList(event.lecturer).forEach((lecturer) => module.lecturers.add(lecturer));
+                    splitList(event.room).forEach((room) => module.rooms.add(room));
+                    event.colorIndex = module.colorIndex;
+                });
+
+                return [...map.values()].sort((a, b) => a.name.localeCompare(b.name, "de"));
+            }
+
+            function restoreSelection() {
+                const available = new Set(state.modules.map((module) => module.name));
+                let saved = [];
+                try {
+                    saved = JSON.parse(readStorage(STORAGE_KEYS.selection, "[]"));
+                } catch {
+                    saved = [];
+                }
+                const merged = new Set([...state.selectedModules, ...saved].filter((name) => available.has(name)));
+                state.selectedModules = merged;
+            }
+
+            function applyPendingSelection() {
+                if (!state.pendingSelection.length) return;
+                const targets = state.pendingSelection.map(normalizeSearch);
+                state.selectedModules = new Set(state.modules
+                    .filter((module) => targets.some((target) => normalizeSearch(module.name).includes(target)))
+                    .map((module) => module.name));
+                state.pendingSelection = [];
+                persistSelection();
+            }
+
+            function renderModuleList() {
+                const query = normalizeSearch(els.moduleSearch.value);
+                const modules = getFilteredModules(query);
+                els.moduleList.innerHTML = "";
+
+                if (!state.modules.length) {
+                    els.moduleList.append(createEmptyMessage("Keine Module geladen."));
+                } else if (!modules.length) {
+                    els.moduleList.append(createEmptyMessage("Keine Treffer."));
+                } else {
+                    const fragment = document.createDocumentFragment();
+                    modules.forEach((module) => fragment.append(createModuleOption(module)));
+                    els.moduleList.append(fragment);
+                }
+
+                els.moduleCount.textContent = String(state.modules.length);
+                updateSelectionSummary();
+                updateBuildButton();
+            }
+
+            function createModuleOption(module) {
+                const label = document.createElement("label");
+                label.className = "module-option";
+
+                const input = document.createElement("input");
+                input.type = "checkbox";
+                input.checked = state.selectedModules.has(module.name);
+                input.addEventListener("change", () => {
+                    if (input.checked) {
+                        state.selectedModules.add(module.name);
+                    } else {
+                        state.selectedModules.delete(module.name);
+                    }
+                    persistSelection();
+                    updateSelectionSummary();
+                    updateBuildButton();
+                });
+
+                const dot = document.createElement("span");
+                dot.className = "module-dot";
+                dot.style.background = COLOR_PALETTE[module.colorIndex][1];
+
+                const body = document.createElement("span");
+                const name = document.createElement("span");
+                name.className = "module-name";
+                name.textContent = module.name;
+                const meta = document.createElement("span");
+                meta.className = "module-meta";
+                meta.textContent = `${module.count} Termine · ${compactSet(module.groups, 3)} · ${compactSet(module.lecturers, 2)}`;
+                body.append(name, meta);
+
+                label.append(input, dot, body);
+                return label;
+            }
+
+            function createEmptyMessage(text) {
+                const message = document.createElement("p");
+                message.className = "calendar-summary";
+                message.textContent = text;
+                return message;
+            }
+
+            function selectVisibleModules() {
+                getFilteredModules(normalizeSearch(els.moduleSearch.value)).forEach((module) => {
+                    state.selectedModules.add(module.name);
+                });
+                persistSelection();
+                renderModuleList();
+            }
+
+            function clearSelection() {
+                state.selectedModules.clear();
+                state.renderedModules.clear();
+                persistSelection();
+                renderModuleList();
+                renderCalendar();
+            }
+
+            function buildCalendar() {
+                state.renderedModules = new Set(state.selectedModules);
+                state.visibleWeekStart = chooseInitialWeek(getRenderedEvents());
+                persistSelection();
+                renderCalendar();
+            }
+
+            function renderCalendar() {
+                const selectedEvents = getRenderedEvents();
+                const hasCalendar = selectedEvents.length > 0;
+                els.emptyState.classList.toggle("hidden", hasCalendar);
+                els.calendarView.classList.toggle("hidden", !hasCalendar);
+                els.listView.classList.toggle("hidden", !hasCalendar);
+                els.exportButton.disabled = !hasCalendar;
+                els.previousWeekButton.disabled = !hasCalendar;
+                els.nextWeekButton.disabled = !hasCalendar;
+                els.todayButton.disabled = !hasCalendar;
+
+                if (!hasCalendar) {
+                    els.weekCalendar.innerHTML = "";
+                    els.agendaList.innerHTML = "";
+                    els.calendarTitle.textContent = "Kalender";
+                    els.calendarSummary.textContent = state.selectedModules.size ? "Kalender bauen, um die Auswahl anzuzeigen." : "Wähle Module aus und baue deinen Kalender.";
+                    hideNotice();
+                    return;
+                }
+
+                if (!state.visibleWeekStart) {
+                    state.visibleWeekStart = chooseInitialWeek(selectedEvents);
+                }
+
+                const weekStart = new Date(state.visibleWeekStart);
+                const weekEnd = addDays(weekStart, 6);
+                const weekEvents = selectedEvents.filter((event) => event.dateIso >= toIsoDate(weekStart) && event.dateIso <= toIsoDate(weekEnd));
+                const conflicts = countConflicts(selectedEvents);
+                const moduleCount = state.renderedModules.size;
+                els.calendarTitle.textContent = `${formatShortDate(weekStart)} - ${formatShortDate(weekEnd)}`;
+                els.calendarSummary.textContent = `${selectedEvents.length} Termine aus ${moduleCount} ${moduleCount === 1 ? "Modul" : "Modulen"}`;
+
+                if (conflicts) {
+                    showNotice(`${conflicts} zeitliche Überschneidung${conflicts === 1 ? "" : "en"} in der aktuellen Auswahl.`);
+                } else {
+                    hideNotice();
+                }
+
+                renderWeek(weekStart, weekEvents, selectedEvents);
+                renderAgenda(selectedEvents);
+            }
+
+            function renderWeek(weekStart, weekEvents, selectedEvents) {
+                const range = getTimeRange(selectedEvents);
+                const calendarHeight = (range.end - range.start) * PIXELS_PER_MINUTE;
+                const days = Array.from({ length: 7 }, (_, index) => addDays(weekStart, index));
+                const eventMap = new Map(days.map((day) => [toIsoDate(day), []]));
+                weekEvents.forEach((event) => eventMap.get(event.dateIso)?.push(event));
+
+                els.weekCalendar.innerHTML = "";
+                const header = document.createElement("div");
+                header.className = "week-header";
+                const spacer = document.createElement("div");
+                spacer.className = "time-spacer";
+                spacer.textContent = "Zeit";
+                header.append(spacer);
+
+                const todayIso = toIsoDate(new Date());
+                days.forEach((day) => {
+                    const dayIso = toIsoDate(day);
+                    const heading = document.createElement("div");
+                    heading.className = `day-heading${dayIso === todayIso ? " is-today" : ""}`;
+                    const dayName = document.createElement("strong");
+                    dayName.textContent = WEEKDAYS[(day.getDay() + 6) % 7];
+                    const date = document.createElement("span");
+                    const dayEvents = eventMap.get(dayIso) || [];
+                    date.textContent = `${formatShortDate(day)} · ${dayEvents.length}`;
+                    heading.append(dayName, date);
+                    header.append(heading);
+                });
+
+                const body = document.createElement("div");
+                body.className = "week-body";
+                const axis = document.createElement("div");
+                axis.className = "time-axis";
+                axis.style.height = `${calendarHeight}px`;
+                renderHourLabels(axis, range);
+                body.append(axis);
+
+                days.forEach((day) => {
+                    const dayIso = toIsoDate(day);
+                    const column = document.createElement("div");
+                    column.className = "day-column";
+                    column.style.height = `${calendarHeight}px`;
+                    const dayEvents = layoutDayEvents(eventMap.get(dayIso) || []);
+                    dayEvents.forEach((event) => column.append(createEventCard(event, range)));
+                    body.append(column);
+                });
+
+                els.weekCalendar.append(header, body);
+            }
+
+            function renderHourLabels(axis, range) {
+                for (let minutes = range.start; minutes <= range.end; minutes += 60) {
+                    const label = document.createElement("span");
+                    label.className = "hour-label";
+                    label.style.top = `${(minutes - range.start) * PIXELS_PER_MINUTE}px`;
+                    label.textContent = minutesToTime(minutes);
+                    axis.append(label);
+                }
+            }
+
+            function createEventCard(event, range) {
+                const card = document.createElement("button");
+                const [bg, border] = COLOR_PALETTE[event.colorIndex % COLOR_PALETTE.length];
+                const columnCount = event.layoutColumns || 1;
+                const columnIndex = event.layoutColumn || 0;
+                const gutter = 4;
+                card.type = "button";
+                card.className = "event-card";
+                card.style.setProperty("--event-bg", bg);
+                card.style.setProperty("--event-border", border);
+                card.style.top = `${(event.startMinutes - range.start) * PIXELS_PER_MINUTE + 3}px`;
+                card.style.height = `${Math.max(42, (event.endMinutes - event.startMinutes) * PIXELS_PER_MINUTE - 6)}px`;
+                card.style.left = `calc(${(100 / columnCount) * columnIndex}% + ${gutter}px)`;
+                card.style.width = `calc(${100 / columnCount}% - ${gutter * 2}px)`;
+                card.title = `${event.course}\n${event.dayLabel}, ${event.start} - ${event.end}\n${event.room}\n${event.lecturer}`;
+
+                const title = document.createElement("strong");
+                title.textContent = event.course;
+                const time = document.createElement("span");
+                time.textContent = `${event.start} - ${event.end} · ${event.room || "Raum offen"}`;
+                const lecturer = document.createElement("small");
+                lecturer.textContent = event.lecturer || event.groups || event.type;
+                card.append(title, time, lecturer);
+                card.addEventListener("click", () => showEventDialog(event));
+                return card;
+            }
+
+            function renderAgenda(events) {
+                els.agendaList.innerHTML = "";
+                const grouped = groupBy(events, "dateIso");
+                Object.keys(grouped).sort().forEach((dateIso) => {
+                    const dayEvents = grouped[dateIso].sort(compareEvents);
+                    const section = document.createElement("section");
+                    section.className = "day-agenda";
+                    const header = document.createElement("header");
+                    const title = document.createElement("h3");
+                    title.textContent = dayEvents[0].dayLabel;
+                    const count = document.createElement("span");
+                    count.className = "metric";
+                    count.textContent = String(dayEvents.length);
+                    header.append(title, count);
+                    section.append(header);
+
+                    dayEvents.forEach((event) => {
+                        const row = document.createElement("button");
+                        row.type = "button";
+                        row.className = "agenda-event";
+                        row.addEventListener("click", () => showEventDialog(event));
+
+                        const time = document.createElement("div");
+                        time.className = "agenda-time";
+                        time.textContent = `${event.start} - ${event.end}`;
+
+                        const body = document.createElement("div");
+                        const titleLine = document.createElement("div");
+                        titleLine.className = "agenda-title";
+                        titleLine.textContent = event.course;
+                        const meta = document.createElement("div");
+                        meta.className = "agenda-meta";
+                        meta.textContent = [event.type, event.room, event.lecturer, event.groups].filter(Boolean).join(" · ");
+                        body.append(titleLine, meta);
+
+                        row.append(time, body);
+                        section.append(row);
+                    });
+
+                    els.agendaList.append(section);
+                });
+            }
+
+            function showEventDialog(event) {
+                els.dialogTitle.textContent = event.course;
+                els.dialogDetails.innerHTML = "";
+                [
+                    ["Datum", event.dayLabel],
+                    ["Uhrzeit", `${event.start} - ${event.end}`],
+                    ["Art", event.type],
+                    ["Dozent", event.lecturer],
+                    ["Raum", event.room],
+                    ["Gruppe", event.groups],
+                    ["Dauer", event.duration]
+                ].forEach(([label, value]) => {
+                    const dt = document.createElement("dt");
+                    dt.textContent = label;
+                    const dd = document.createElement("dd");
+                    dd.textContent = value || "-";
+                    els.dialogDetails.append(dt, dd);
+                });
+                if (typeof els.eventDialog.showModal === "function") {
+                    els.eventDialog.showModal();
+                }
+            }
+
+            function layoutDayEvents(events) {
+                const sorted = [...events].sort(compareEvents);
+                const clusters = [];
+                let cluster = null;
+
+                sorted.forEach((event) => {
+                    if (!cluster || event.startMinutes >= cluster.end) {
+                        cluster = { events: [], end: event.endMinutes };
+                        clusters.push(cluster);
+                    }
+                    cluster.events.push(event);
+                    cluster.end = Math.max(cluster.end, event.endMinutes);
+                });
+
+                const laidOut = [];
+                clusters.forEach((item) => {
+                    const columns = [];
+                    item.events.forEach((event) => {
+                        let columnIndex = columns.findIndex((end) => event.startMinutes >= end);
+                        if (columnIndex === -1) {
+                            columnIndex = columns.length;
+                            columns.push(event.endMinutes);
+                        } else {
+                            columns[columnIndex] = event.endMinutes;
+                        }
+                        laidOut.push({
+                            ...event,
+                            layoutColumn: columnIndex,
+                            layoutColumns: columns.length
+                        });
+                    });
+
+                    laidOut.slice(-item.events.length).forEach((event) => {
+                        event.layoutColumns = columns.length;
+                    });
+                });
+
+                return laidOut;
+            }
+
+            function getTimeRange(events) {
+                const min = Math.min(...events.map((event) => event.startMinutes), 8 * 60);
+                const max = Math.max(...events.map((event) => event.endMinutes), 19 * 60);
+                return {
+                    start: Math.max(0, Math.floor(min / 60) * 60),
+                    end: Math.min(24 * 60, Math.ceil(max / 60) * 60)
+                };
+            }
+
+            function countConflicts(events) {
+                let conflicts = 0;
+                const grouped = groupBy(events, "dateIso");
+                Object.values(grouped).forEach((dayEvents) => {
+                    const sorted = dayEvents.sort(compareEvents);
+                    for (let i = 0; i < sorted.length; i += 1) {
+                        for (let j = i + 1; j < sorted.length; j += 1) {
+                            if (sorted[j].startMinutes >= sorted[i].endMinutes) break;
+                            conflicts += 1;
+                        }
+                    }
+                });
+                return conflicts;
+            }
+
+            function getRenderedEvents() {
+                if (!state.renderedModules.size) return [];
+                return state.events
+                    .filter((event) => state.renderedModules.has(event.course))
+                    .sort(compareEvents);
+            }
+
+            function getFilteredModules(query) {
+                if (!query) return state.modules;
+                return state.modules.filter((module) => {
+                    const haystack = normalizeSearch([
+                        module.name,
+                        ...module.groups,
+                        ...module.lecturers,
+                        ...module.rooms
+                    ].join(" "));
+                    return haystack.includes(query);
+                });
+            }
+
+            function updateSelectionSummary() {
+                const selected = state.selectedModules.size;
+                if (!state.modules.length) {
+                    els.selectionSummary.textContent = "Noch keine Daten geladen.";
+                } else if (!selected) {
+                    els.selectionSummary.textContent = `${state.modules.length} Module gefunden.`;
+                } else {
+                    els.selectionSummary.textContent = `${selected} von ${state.modules.length} Modulen ausgewählt.`;
+                }
+            }
+
+            function updateBuildButton() {
+                const selected = state.selectedModules.size;
+                els.buildButton.disabled = selected === 0 || state.events.length === 0;
+                els.buildButton.textContent = selected ? `Kalender bauen (${selected})` : "Kalender bauen";
+            }
+
+            function setSourceStatus(text, tone) {
+                els.sourceStatus.textContent = text;
+                els.sourceStatus.dataset.tone = tone;
+            }
+
+            function setLoading(isLoading) {
+                els.reloadButton.disabled = isLoading;
+                els.loadUrlButton.disabled = isLoading;
+                els.buildButton.disabled = isLoading || state.selectedModules.size === 0 || state.events.length === 0;
+            }
+
+            function showNotice(text) {
+                els.notice.textContent = text;
+                els.notice.classList.add("is-visible");
+            }
+
+            function hideNotice() {
+                els.notice.textContent = "";
+                els.notice.classList.remove("is-visible");
+            }
+
+            function shiftWeek(offset) {
+                if (!state.visibleWeekStart) return;
+                state.visibleWeekStart = addDays(state.visibleWeekStart, offset * 7);
+                renderCalendar();
+            }
+
+            function jumpToToday() {
+                state.visibleWeekStart = startOfWeek(new Date());
+                renderCalendar();
+            }
+
+            function switchView(view) {
+                state.activeView = view;
+                els.calendarTab.setAttribute("aria-selected", String(view === "calendar"));
+                els.listTab.setAttribute("aria-selected", String(view === "list"));
+                els.calendarView.classList.toggle("is-active", view === "calendar");
+                els.listView.classList.toggle("is-active", view === "list");
+            }
+
+            function exportIcs() {
+                const events = getRenderedEvents();
+                if (!events.length) return;
+
+                const lines = [
+                    "BEGIN:VCALENDAR",
+                    "VERSION:2.0",
+                    "PRODID:-//Stundenplan Picker//HS Osnabrueck//DE",
+                    "CALSCALE:GREGORIAN",
+                    "METHOD:PUBLISH",
+                    "X-WR-CALNAME:Stundenplan Picker"
+                ];
+
+                events.forEach((event) => {
+                    const description = [
+                        event.type ? `Art: ${event.type}` : "",
+                        event.lecturer ? `Dozent: ${event.lecturer}` : "",
+                        event.groups ? `Studiengruppe: ${event.groups}` : ""
+                    ].filter(Boolean).join("\\n");
+                    lines.push(
+                        "BEGIN:VEVENT",
+                        `UID:${escapeIcs(`${event.id}-${event.dateIso}@stundenplan-picker`)}`,
+                        `DTSTAMP:${toIcsStamp(new Date())}`,
+                        `DTSTART;TZID=Europe/Berlin:${toIcsLocal(event.dateIso, event.start)}`,
+                        `DTEND;TZID=Europe/Berlin:${toIcsLocal(event.dateIso, event.end)}`,
+                        `SUMMARY:${escapeIcs(event.course)}`,
+                        `LOCATION:${escapeIcs(event.room)}`,
+                        `DESCRIPTION:${escapeIcs(description)}`,
+                        "END:VEVENT"
+                    );
+                });
+
+                lines.push("END:VCALENDAR");
+                const blob = new Blob([lines.join("\r\n")], { type: "text/calendar;charset=utf-8" });
+                const url = URL.createObjectURL(blob);
+                const anchor = document.createElement("a");
+                anchor.href = url;
+                anchor.download = "stundenplan.ics";
+                document.body.append(anchor);
+                anchor.click();
+                anchor.remove();
+                URL.revokeObjectURL(url);
+            }
+
+            function persistSelection() {
+                writeStorage(STORAGE_KEYS.selection, JSON.stringify([...state.selectedModules]));
+            }
+
+            function readStorage(key, fallback) {
+                try {
+                    return localStorage.getItem(key) ?? fallback;
+                } catch {
+                    return fallback;
+                }
+            }
+
+            function writeStorage(key, value) {
+                try {
+                    localStorage.setItem(key, value);
+                } catch {
+                    // Lokale Speicherung ist nur Komfort.
+                }
+            }
+
+            function parseGermanDate(text) {
+                const match = text.match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+                if (!match) return null;
+                return new Date(Number(match[3]), Number(match[2]) - 1, Number(match[1]));
+            }
+
+            function readTime(text) {
+                return cleanText(text).match(/\d{1,2}:\d{2}/)?.[0] || "";
+            }
+
+            function timeToMinutes(time) {
+                const [hours, minutes] = time.split(":").map(Number);
+                return hours * 60 + minutes;
+            }
+
+            function minutesToTime(minutes) {
+                return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+            }
+
+            function toIsoDate(date) {
+                return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+            }
+
+            function toIcsLocal(dateIso, time) {
+                return `${dateIso.replaceAll("-", "")}T${time.replace(":", "")}00`;
+            }
+
+            function toIcsStamp(date) {
+                return date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+            }
+
+            function escapeIcs(value) {
+                return String(value || "")
+                    .replaceAll("\\", "\\\\")
+                    .replaceAll(";", "\\;")
+                    .replaceAll(",", "\\,")
+                    .replace(/\r?\n/g, "\\n");
+            }
+
+            function startOfWeek(date) {
+                const copy = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+                const day = (copy.getDay() + 6) % 7;
+                copy.setDate(copy.getDate() - day);
+                return copy;
+            }
+
+            function addDays(date, days) {
+                const copy = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+                copy.setDate(copy.getDate() + days);
+                return copy;
+            }
+
+            function chooseInitialWeek(events) {
+                if (!events.length) return null;
+                const todayIso = toIsoDate(new Date());
+                const upcoming = events.find((event) => event.dateIso >= todayIso) || events[0];
+                return startOfWeek(upcoming.date);
+            }
+
+            function formatShortDate(date) {
+                return `${String(date.getDate()).padStart(2, "0")}. ${MONTHS[date.getMonth()]}`;
+            }
+
+            function formatLongDate(date) {
+                const weekday = WEEKDAYS[(date.getDay() + 6) % 7];
+                return `${weekday}, ${String(date.getDate()).padStart(2, "0")}.${String(date.getMonth() + 1).padStart(2, "0")}.${date.getFullYear()}`;
+            }
+
+            function compareEvents(a, b) {
+                return a.dateIso.localeCompare(b.dateIso) || a.startMinutes - b.startMinutes || a.course.localeCompare(b.course, "de");
+            }
+
+            function splitList(value) {
+                return cleanText(value).split(",").map((item) => item.trim()).filter(Boolean);
+            }
+
+            function compactSet(set, limit) {
+                const values = [...set].filter(Boolean);
+                if (!values.length) return "ohne Angabe";
+                const visible = values.slice(0, limit).join(", ");
+                return values.length > limit ? `${visible} +${values.length - limit}` : visible;
+            }
+
+            function groupBy(items, key) {
+                return items.reduce((groups, item) => {
+                    const value = item[key];
+                    if (!groups[value]) groups[value] = [];
+                    groups[value].push(item);
+                    return groups;
+                }, {});
+            }
+
+            function cleanText(value) {
+                return String(value || "").replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
+            }
+
+            function normalizeSearch(value) {
+                return cleanText(value).toLocaleLowerCase("de-DE");
+            }
+        })();
+    </script>
 </body>
 </html>
