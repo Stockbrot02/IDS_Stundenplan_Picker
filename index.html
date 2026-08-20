@@ -16,6 +16,8 @@
             --primary: #006b5f;
             --primary-dark: #004f48;
             --primary-soft: #e1f2ef;
+            --event-bg: #eaf0fb;
+            --event-border: #2f5ea8;
             --warning: #996200;
             --warning-soft: #fff4d8;
             --danger: #9c2f3b;
@@ -545,13 +547,18 @@
             position: absolute;
             z-index: 1;
             overflow: hidden;
-            border: 1px solid var(--event-border, var(--primary));
+            border: 1px solid var(--event-border);
             border-radius: var(--radius);
             padding: 8px;
             color: var(--ink);
-            background: var(--event-bg, var(--primary-soft));
+            background: var(--event-bg);
             text-align: left;
             box-shadow: 0 8px 18px rgba(23, 33, 43, 0.08);
+        }
+
+        .event-card.is-conflict {
+            --event-bg: var(--danger-soft);
+            --event-border: var(--danger);
         }
 
         .event-card:hover {
@@ -1387,14 +1394,11 @@
 
             function createEventCard(event, range) {
                 const card = document.createElement("button");
-                const [bg, border] = COLOR_PALETTE[event.colorIndex % COLOR_PALETTE.length];
                 const columnCount = event.layoutColumns || 1;
                 const columnIndex = event.layoutColumn || 0;
                 const gutter = 4;
                 card.type = "button";
-                card.className = "event-card";
-                card.style.setProperty("--event-bg", bg);
-                card.style.setProperty("--event-border", border);
+                card.className = `event-card${event.hasConflict ? " is-conflict" : ""}`;
                 card.style.top = `${(event.startMinutes - range.start) * PIXELS_PER_MINUTE + 3}px`;
                 card.style.height = `${Math.max(42, (event.endMinutes - event.startMinutes) * PIXELS_PER_MINUTE - 6)}px`;
                 card.style.left = `calc(${(100 / columnCount) * columnIndex}% + ${gutter}px)`;
@@ -1495,6 +1499,7 @@
                 const laidOut = [];
                 clusters.forEach((item) => {
                     const columns = [];
+                    const conflictIds = getConflictingEventIds(item.events);
                     item.events.forEach((event) => {
                         let columnIndex = columns.findIndex((end) => event.startMinutes >= end);
                         if (columnIndex === -1) {
@@ -1505,6 +1510,7 @@
                         }
                         laidOut.push({
                             ...event,
+                            hasConflict: conflictIds.has(event.id),
                             layoutColumn: columnIndex,
                             layoutColumns: columns.length
                         });
@@ -1516,6 +1522,19 @@
                 });
 
                 return laidOut;
+            }
+
+            function getConflictingEventIds(events) {
+                const conflictIds = new Set();
+                for (let i = 0; i < events.length; i += 1) {
+                    for (let j = i + 1; j < events.length; j += 1) {
+                        if (eventsOverlap(events[i], events[j]) && events[i].moduleId !== events[j].moduleId) {
+                            conflictIds.add(events[i].id);
+                            conflictIds.add(events[j].id);
+                        }
+                    }
+                }
+                return conflictIds;
             }
 
             function getTimeRange(events) {
@@ -1535,11 +1554,17 @@
                     for (let i = 0; i < sorted.length; i += 1) {
                         for (let j = i + 1; j < sorted.length; j += 1) {
                             if (sorted[j].startMinutes >= sorted[i].endMinutes) break;
-                            conflicts += 1;
+                            if (sorted[i].moduleId !== sorted[j].moduleId && eventsOverlap(sorted[i], sorted[j])) {
+                                conflicts += 1;
+                            }
                         }
                     }
                 });
                 return conflicts;
+            }
+
+            function eventsOverlap(a, b) {
+                return a.startMinutes < b.endMinutes && b.startMinutes < a.endMinutes;
             }
 
             function getRenderedEvents() {
