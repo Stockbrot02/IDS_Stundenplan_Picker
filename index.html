@@ -3,12 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light dark">
     <title>Stundenplan Picker</title>
+    <script>
+        (() => {
+            try {
+                const savedTheme = localStorage.getItem("stundenplan-picker:theme");
+                const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+                document.documentElement.dataset.theme = savedTheme === "dark" || (!savedTheme && prefersDark) ? "dark" : "light";
+            } catch {
+                document.documentElement.dataset.theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+            }
+        })();
+    </script>
     <style>
         :root {
+            color-scheme: light;
             --bg: #f6f7f9;
             --surface: #ffffff;
             --surface-muted: #eef2f3;
+            --surface-subtle: #fbfcfc;
+            --surface-translucent: rgba(255, 255, 255, 0.55);
             --ink: #17212b;
             --muted: #62707c;
             --line: #d8dee4;
@@ -16,16 +31,66 @@
             --primary: #006b5f;
             --primary-dark: #004f48;
             --primary-soft: #e1f2ef;
+            --primary-action-bg: #006b5f;
+            --primary-action-hover: #004f48;
+            --primary-action-shadow: 0 10px 24px rgba(0, 79, 72, 0.22);
+            --on-primary: #ffffff;
+            --control-active-bg: #17212b;
+            --control-active-ink: #ffffff;
             --event-bg: #eaf0fb;
             --event-border: #2f5ea8;
             --warning: #996200;
             --warning-soft: #fff4d8;
+            --warning-hover: rgba(153, 98, 0, 0.08);
+            --warning-line: rgba(153, 98, 0, 0.28);
+            --warning-item-line: rgba(153, 98, 0, 0.24);
             --danger: #9c2f3b;
             --danger-soft: #ffe6e9;
             --focus: #2f5ea8;
+            --focus-ring: rgba(47, 94, 168, 0.23);
+            --calendar-grid-line: rgba(216, 222, 228, 0.9);
+            --event-shadow: 0 8px 18px rgba(23, 33, 43, 0.08);
+            --dialog-backdrop: rgba(23, 33, 43, 0.32);
             --shadow: 0 18px 45px rgba(23, 33, 43, 0.08);
             --radius: 8px;
             --font: Arial, Helvetica, sans-serif;
+        }
+
+        :root[data-theme="dark"] {
+            color-scheme: dark;
+            --bg: #111820;
+            --surface: #18212b;
+            --surface-muted: #23303b;
+            --surface-subtle: #141d25;
+            --surface-translucent: rgba(24, 33, 43, 0.78);
+            --ink: #eef4f8;
+            --muted: #aab8c5;
+            --line: #334452;
+            --line-strong: #526574;
+            --primary: #66d7ca;
+            --primary-dark: #9be9df;
+            --primary-soft: #123b38;
+            --primary-action-bg: #08786f;
+            --primary-action-hover: #09645d;
+            --primary-action-shadow: 0 10px 24px rgba(0, 0, 0, 0.24);
+            --on-primary: #ffffff;
+            --control-active-bg: #dce9ef;
+            --control-active-ink: #111820;
+            --event-bg: #1f3552;
+            --event-border: #7aa9eb;
+            --warning: #f0c36c;
+            --warning-soft: #332716;
+            --warning-hover: rgba(240, 195, 108, 0.12);
+            --warning-line: rgba(240, 195, 108, 0.28);
+            --warning-item-line: rgba(240, 195, 108, 0.24);
+            --danger: #ff9aa8;
+            --danger-soft: #3b2027;
+            --focus: #8bbdff;
+            --focus-ring: rgba(139, 189, 255, 0.3);
+            --calendar-grid-line: rgba(82, 101, 116, 0.62);
+            --event-shadow: 0 10px 22px rgba(0, 0, 0, 0.32);
+            --dialog-backdrop: rgba(0, 0, 0, 0.56);
+            --shadow: 0 18px 45px rgba(0, 0, 0, 0.26);
         }
 
         * {
@@ -171,22 +236,39 @@
             position: sticky;
             bottom: 14px;
             z-index: 5;
-            border-color: var(--primary-dark);
-            color: #ffffff;
-            background: var(--primary);
+            border-color: var(--primary-action-hover);
+            color: var(--on-primary);
+            background: var(--primary-action-bg);
             font-weight: 700;
-            box-shadow: 0 10px 24px rgba(0, 79, 72, 0.22);
+            box-shadow: var(--primary-action-shadow);
         }
 
         .primary-action:hover:not(:disabled) {
-            border-color: var(--primary-dark);
-            color: #ffffff;
-            background: var(--primary-dark);
+            border-color: var(--primary-action-hover);
+            color: var(--on-primary);
+            background: var(--primary-action-hover);
         }
 
         .icon-button {
             min-width: 38px;
             padding: 0 11px;
+        }
+
+        .theme-button {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.05rem;
+        }
+
+        .theme-button-icon {
+            display: inline-flex;
+            width: 1em;
+            height: 1em;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
         }
 
         .app-shell {
@@ -273,7 +355,7 @@
         .file-picker:focus-within,
         .module-option:focus-within,
         .event-card:focus-visible {
-            outline: 3px solid rgba(47, 94, 168, 0.23);
+            outline: 3px solid var(--focus-ring);
             outline-offset: 2px;
         }
 
@@ -387,8 +469,8 @@
         }
 
         .tab-button[aria-selected="true"] {
-            color: #ffffff;
-            background: var(--ink);
+            color: var(--control-active-ink);
+            background: var(--control-active-bg);
         }
 
         .toolbar-actions {
@@ -435,7 +517,7 @@
         }
 
         .conflict-toggle:hover {
-            background: rgba(153, 98, 0, 0.08);
+            background: var(--warning-hover);
         }
 
         .conflict-toggle span:last-child {
@@ -448,7 +530,7 @@
         .conflict-details {
             display: none;
             gap: 8px;
-            border-top: 1px solid rgba(153, 98, 0, 0.28);
+            border-top: 1px solid var(--warning-line);
             padding: 10px 12px 12px;
         }
 
@@ -457,10 +539,10 @@
         }
 
         .conflict-item {
-            border: 1px solid rgba(153, 98, 0, 0.24);
+            border: 1px solid var(--warning-item-line);
             border-radius: var(--radius);
             padding: 10px;
-            background: rgba(255, 255, 255, 0.55);
+            background: var(--surface-translucent);
         }
 
         .conflict-item strong,
@@ -579,7 +661,7 @@
 
         .time-axis {
             border-right: 1px solid var(--line);
-            background: #fbfcfc;
+            background: var(--surface-subtle);
         }
 
         .hour-label {
@@ -596,7 +678,7 @@
                 to bottom,
                 transparent 0,
                 transparent 59px,
-                rgba(216, 222, 228, 0.9) 60px
+                var(--calendar-grid-line) 60px
             );
         }
 
@@ -614,7 +696,7 @@
             color: var(--ink);
             background: var(--event-bg);
             text-align: left;
-            box-shadow: 0 8px 18px rgba(23, 33, 43, 0.08);
+            box-shadow: var(--event-shadow);
         }
 
         .event-card.is-conflict {
@@ -669,7 +751,7 @@
             gap: 12px;
             border-bottom: 1px solid var(--line);
             padding: 10px 12px;
-            background: #fbfcfc;
+            background: var(--surface-subtle);
         }
 
         .day-agenda h3 {
@@ -722,11 +804,12 @@
             border-radius: var(--radius);
             padding: 0;
             color: var(--ink);
+            background: var(--surface);
             box-shadow: var(--shadow);
         }
 
         dialog::backdrop {
-            background: rgba(23, 33, 43, 0.32);
+            background: var(--dialog-backdrop);
         }
 
         .dialog-header {
@@ -826,6 +909,9 @@
             <p id="sourceStatus" class="status-line" data-tone="muted">Stundenplan wird geladen...</p>
         </div>
         <div class="header-actions">
+            <button id="themeToggle" class="icon-button theme-button" type="button" aria-label="Dark Mode aktivieren" aria-pressed="false" title="Dark Mode aktivieren">
+                <span id="themeToggleIcon" class="theme-button-icon" aria-hidden="true">&#9790;</span>
+            </button>
             <a class="link-button" href="https://sked.lin.hs-osnabrueck.de/sked/jg/24VTS.html" target="_blank" rel="noopener">Quelle öffnen</a>
             <button id="reloadButton" class="small-button" type="button">Aktualisieren</button>
         </div>
@@ -934,7 +1020,8 @@
                 url: "stundenplan-picker:url",
                 proxy: "stundenplan-picker:proxy",
                 selection: "stundenplan-picker:selection",
-                renderedSelection: "stundenplan-picker:rendered-selection"
+                renderedSelection: "stundenplan-picker:rendered-selection",
+                theme: "stundenplan-picker:theme"
             };
             const COLOR_PALETTE = [
                 ["#e1f2ef", "#006b5f"],
@@ -971,6 +1058,7 @@
 
             function init() {
                 cacheElements();
+                applyTheme(getActiveTheme(), false);
                 bindEvents();
                 const params = new URLSearchParams(window.location.search);
                 els.scheduleUrl.value = params.get("source") || readStorage(STORAGE_KEYS.url, DEFAULT_URL);
@@ -981,6 +1069,8 @@
             }
 
             function cacheElements() {
+                els.themeToggle = document.getElementById("themeToggle");
+                els.themeToggleIcon = document.getElementById("themeToggleIcon");
                 els.sourceStatus = document.getElementById("sourceStatus");
                 els.reloadButton = document.getElementById("reloadButton");
                 els.scheduleUrl = document.getElementById("scheduleUrl");
@@ -1019,6 +1109,9 @@
             }
 
             function bindEvents() {
+                els.themeToggle.addEventListener("click", () => {
+                    applyTheme(getActiveTheme() === "dark" ? "light" : "dark", true);
+                });
                 els.reloadButton.addEventListener("click", loadRemoteSchedule);
                 els.loadUrlButton.addEventListener("click", loadRemoteSchedule);
                 els.scheduleUrl.addEventListener("change", loadRemoteSchedule);
@@ -1045,6 +1138,25 @@
                 if (target?.closest("#conflictToggle")) {
                     event.preventDefault();
                     toggleConflictDetails();
+                }
+            }
+
+            function getActiveTheme() {
+                return document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+            }
+
+            function applyTheme(theme, persist) {
+                const nextTheme = theme === "dark" ? "dark" : "light";
+                const isDark = nextTheme === "dark";
+                const nextLabel = isDark ? "White Mode aktivieren" : "Dark Mode aktivieren";
+                document.documentElement.dataset.theme = nextTheme;
+                els.themeToggle.setAttribute("aria-pressed", String(isDark));
+                els.themeToggle.setAttribute("aria-label", nextLabel);
+                els.themeToggle.title = nextLabel;
+                els.themeToggleIcon.textContent = isDark ? "\u2600" : "\u263e";
+
+                if (persist) {
+                    writeStorage(STORAGE_KEYS.theme, nextTheme);
                 }
             }
 
