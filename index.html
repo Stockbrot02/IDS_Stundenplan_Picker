@@ -404,19 +404,80 @@
             overflow-wrap: anywhere;
         }
 
-        .notice {
+        .conflict-panel {
             display: none;
             margin: 0 0 14px;
             border: 1px solid var(--warning);
             border-radius: var(--radius);
-            padding: 10px 12px;
             color: var(--warning);
             background: var(--warning-soft);
             font-size: 0.9rem;
         }
 
-        .notice.is-visible {
+        .conflict-panel.is-visible {
             display: block;
+        }
+
+        .conflict-toggle {
+            display: flex;
+            width: 100%;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            min-height: 42px;
+            border: 0;
+            border-radius: var(--radius);
+            padding: 10px 12px;
+            color: var(--warning);
+            background: transparent;
+            text-align: left;
+            font-weight: 700;
+        }
+
+        .conflict-toggle:hover {
+            background: rgba(153, 98, 0, 0.08);
+        }
+
+        .conflict-toggle span:last-child {
+            flex-shrink: 0;
+            color: var(--muted);
+            font-size: 0.82rem;
+            font-weight: 700;
+        }
+
+        .conflict-details {
+            display: none;
+            gap: 8px;
+            border-top: 1px solid rgba(153, 98, 0, 0.28);
+            padding: 10px 12px 12px;
+        }
+
+        .conflict-panel.is-expanded .conflict-details {
+            display: grid;
+        }
+
+        .conflict-item {
+            border: 1px solid rgba(153, 98, 0, 0.24);
+            border-radius: var(--radius);
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.55);
+        }
+
+        .conflict-item strong,
+        .conflict-item span {
+            display: block;
+            overflow-wrap: anywhere;
+        }
+
+        .conflict-item strong {
+            color: var(--ink);
+            font-size: 0.9rem;
+        }
+
+        .conflict-item span {
+            margin-top: 4px;
+            color: var(--muted);
+            line-height: 1.4;
         }
 
         .empty-state {
@@ -827,7 +888,13 @@
                 </div>
             </div>
 
-            <p id="notice" class="notice"></p>
+            <div id="conflictPanel" class="conflict-panel">
+                <button id="conflictToggle" class="conflict-toggle" type="button" aria-expanded="false" aria-controls="conflictDetails">
+                    <span id="conflictSummary"></span>
+                    <span id="conflictToggleLabel">Details anzeigen</span>
+                </button>
+                <div id="conflictDetails" class="conflict-details" aria-hidden="true"></div>
+            </div>
 
             <div id="emptyState" class="empty-state">
                 <div>
@@ -893,7 +960,8 @@
                 lastLoadedLabel: "",
                 lastLoadedVia: "",
                 pendingSelection: [],
-                autoBuild: false
+                autoBuild: false,
+                conflictsExpanded: false
             };
 
             const els = {};
@@ -931,7 +999,11 @@
                 els.todayButton = document.getElementById("todayButton");
                 els.nextWeekButton = document.getElementById("nextWeekButton");
                 els.exportButton = document.getElementById("exportButton");
-                els.notice = document.getElementById("notice");
+                els.conflictPanel = document.getElementById("conflictPanel");
+                els.conflictToggle = document.getElementById("conflictToggle");
+                els.conflictSummary = document.getElementById("conflictSummary");
+                els.conflictToggleLabel = document.getElementById("conflictToggleLabel");
+                els.conflictDetails = document.getElementById("conflictDetails");
                 els.emptyState = document.getElementById("emptyState");
                 els.calendarView = document.getElementById("calendarView");
                 els.listView = document.getElementById("listView");
@@ -961,9 +1033,18 @@
                 els.nextWeekButton.addEventListener("click", () => shiftWeek(1));
                 els.todayButton.addEventListener("click", jumpToToday);
                 els.exportButton.addEventListener("click", exportIcs);
+                document.addEventListener("click", handleDocumentClick);
                 els.calendarTab.addEventListener("click", () => switchView("calendar"));
                 els.listTab.addEventListener("click", () => switchView("list"));
                 els.closeDialogButton.addEventListener("click", () => els.eventDialog.close());
+            }
+
+            function handleDocumentClick(event) {
+                const target = event.target instanceof Element ? event.target : null;
+                if (target?.closest("#conflictToggle")) {
+                    event.preventDefault();
+                    toggleConflictDetails();
+                }
             }
 
             async function loadRemoteSchedule() {
@@ -1306,7 +1387,7 @@
                     els.agendaList.innerHTML = "";
                     els.calendarTitle.textContent = "Kalender";
                     els.calendarSummary.textContent = state.selectedModules.size ? "Kalender bauen, um die Auswahl anzuzeigen." : "Wähle Module aus und baue deinen Kalender.";
-                    hideNotice();
+                    hideConflictPanel();
                     return;
                 }
 
@@ -1317,15 +1398,15 @@
                 const weekStart = new Date(state.visibleWeekStart);
                 const weekEnd = addDays(weekStart, 6);
                 const weekEvents = selectedEvents.filter((event) => event.dateIso >= toIsoDate(weekStart) && event.dateIso <= toIsoDate(weekEnd));
-                const conflicts = countConflicts(selectedEvents);
+                const conflicts = getConflicts(selectedEvents);
                 const moduleCount = state.renderedModules.size;
                 els.calendarTitle.textContent = `${formatShortDate(weekStart)} - ${formatShortDate(weekEnd)}`;
                 els.calendarSummary.textContent = `${selectedEvents.length} Termine aus ${moduleCount} ${moduleCount === 1 ? "Angebot" : "Angeboten"}`;
 
-                if (conflicts) {
-                    showNotice(`${conflicts} zeitliche Überschneidung${conflicts === 1 ? "" : "en"} in der aktuellen Auswahl.`);
+                if (conflicts.length) {
+                    renderConflictPanel(conflicts);
                 } else {
-                    hideNotice();
+                    hideConflictPanel();
                 }
 
                 renderWeek(weekStart, weekEvents, selectedEvents);
@@ -1546,21 +1627,33 @@
                 };
             }
 
-            function countConflicts(events) {
-                let conflicts = 0;
+            function getConflicts(events) {
+                const conflicts = [];
                 const grouped = groupBy(events, "dateIso");
                 Object.values(grouped).forEach((dayEvents) => {
-                    const sorted = dayEvents.sort(compareEvents);
+                    const sorted = [...dayEvents].sort(compareEvents);
                     for (let i = 0; i < sorted.length; i += 1) {
                         for (let j = i + 1; j < sorted.length; j += 1) {
                             if (sorted[j].startMinutes >= sorted[i].endMinutes) break;
                             if (sorted[i].moduleId !== sorted[j].moduleId && eventsOverlap(sorted[i], sorted[j])) {
-                                conflicts += 1;
+                                conflicts.push(createConflict(sorted[i], sorted[j]));
                             }
                         }
                     }
                 });
                 return conflicts;
+            }
+
+            function createConflict(first, second) {
+                const overlapStart = Math.max(first.startMinutes, second.startMinutes);
+                const overlapEnd = Math.min(first.endMinutes, second.endMinutes);
+                return {
+                    id: `${first.id}-${second.id}`,
+                    dateIso: first.dateIso,
+                    dayLabel: first.dayLabel,
+                    time: `${minutesToTime(overlapStart)} - ${minutesToTime(overlapEnd)}`,
+                    events: [first, second].sort(compareEvents)
+                };
             }
 
             function eventsOverlap(a, b) {
@@ -1617,14 +1710,53 @@
                 els.buildButton.disabled = isLoading || state.selectedModules.size === 0 || state.events.length === 0;
             }
 
-            function showNotice(text) {
-                els.notice.textContent = text;
-                els.notice.classList.add("is-visible");
+            function renderConflictPanel(conflicts) {
+                els.conflictSummary.textContent = `${conflicts.length} zeitliche Überschneidung${conflicts.length === 1 ? "" : "en"} in der aktuellen Auswahl.`;
+                els.conflictDetails.innerHTML = "";
+                conflicts.forEach((conflict) => {
+                    els.conflictDetails.append(createConflictItem(conflict));
+                });
+                els.conflictPanel.classList.add("is-visible");
+                updateConflictToggle();
             }
 
-            function hideNotice() {
-                els.notice.textContent = "";
-                els.notice.classList.remove("is-visible");
+            function createConflictItem(conflict) {
+                const item = document.createElement("div");
+                item.className = "conflict-item";
+
+                const title = document.createElement("strong");
+                title.textContent = `${conflict.dayLabel} · ${conflict.time}`;
+
+                const details = document.createElement("span");
+                details.textContent = conflict.events.map(formatConflictEvent).join(" ↔ ");
+
+                item.append(title, details);
+                return item;
+            }
+
+            function formatConflictEvent(event) {
+                return `${event.course} (${event.lecturer || "ohne Dozent"}, ${event.room || "Raum offen"})`;
+            }
+
+            function hideConflictPanel() {
+                state.conflictsExpanded = false;
+                els.conflictSummary.textContent = "";
+                els.conflictDetails.innerHTML = "";
+                els.conflictPanel.classList.remove("is-visible");
+                updateConflictToggle();
+            }
+
+            function toggleConflictDetails() {
+                state.conflictsExpanded = !state.conflictsExpanded;
+                updateConflictToggle();
+            }
+
+            function updateConflictToggle() {
+                const expanded = state.conflictsExpanded && els.conflictPanel.classList.contains("is-visible");
+                els.conflictPanel.classList.toggle("is-expanded", expanded);
+                els.conflictToggle.setAttribute("aria-expanded", String(expanded));
+                els.conflictDetails.setAttribute("aria-hidden", String(!expanded));
+                els.conflictToggleLabel.textContent = expanded ? "Details ausblenden" : "Details anzeigen";
             }
 
             function shiftWeek(offset) {
