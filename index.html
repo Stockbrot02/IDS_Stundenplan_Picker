@@ -933,7 +933,8 @@
             const STORAGE_KEYS = {
                 url: "stundenplan-picker:url",
                 proxy: "stundenplan-picker:proxy",
-                selection: "stundenplan-picker:selection"
+                selection: "stundenplan-picker:selection",
+                renderedSelection: "stundenplan-picker:rendered-selection"
             };
             const COLOR_PALETTE = [
                 ["#e1f2ef", "#006b5f"],
@@ -1153,10 +1154,11 @@
                 state.lastLoadedVia = via;
                 restoreSelection();
                 applyPendingSelection();
-                const renderedSelection = resolveSelectionTokens([...state.renderedModules]);
-                state.renderedModules = state.autoBuild && state.selectedModules.size
-                    ? new Set(state.selectedModules)
-                    : new Set(renderedSelection.filter((id) => state.selectedModules.has(id)));
+                restoreRenderedSelection();
+                if (state.autoBuild && state.selectedModules.size) {
+                    state.renderedModules = new Set(state.selectedModules);
+                    persistRenderedSelection();
+                }
                 state.visibleWeekStart = chooseInitialWeek(getRenderedEvents()) || chooseInitialWeek(state.events);
 
                 renderModuleList();
@@ -1250,14 +1252,19 @@
 
             function restoreSelection() {
                 const available = new Set(state.modules.map((module) => module.id));
-                let saved = [];
-                try {
-                    saved = JSON.parse(readStorage(STORAGE_KEYS.selection, "[]"));
-                } catch {
-                    saved = [];
-                }
+                const saved = readStoredList(STORAGE_KEYS.selection);
                 const merged = new Set(resolveSelectionTokens([...state.selectedModules, ...saved]).filter((id) => available.has(id)));
                 state.selectedModules = merged;
+            }
+
+            function restoreRenderedSelection() {
+                const available = new Set(state.modules.map((module) => module.id));
+                const saved = readStoredList(STORAGE_KEYS.renderedSelection);
+                const current = [...state.renderedModules];
+                const tokens = saved.length ? saved : current;
+                const restored = resolveSelectionTokens(tokens)
+                    .filter((id) => available.has(id) && state.selectedModules.has(id));
+                state.renderedModules = new Set(restored);
             }
 
             function applyPendingSelection() {
@@ -1382,7 +1389,7 @@
             function clearSelection() {
                 state.selectedModules.clear();
                 state.renderedModules.clear();
-                persistSelection();
+                persistCalendarState();
                 renderModuleList();
                 renderCalendar();
             }
@@ -1390,7 +1397,7 @@
             function buildCalendar() {
                 state.renderedModules = new Set(state.selectedModules);
                 state.visibleWeekStart = chooseInitialWeek(getRenderedEvents());
-                persistSelection();
+                persistCalendarState();
                 renderCalendar();
             }
 
@@ -1849,6 +1856,26 @@
 
             function persistSelection() {
                 writeStorage(STORAGE_KEYS.selection, JSON.stringify([...state.selectedModules]));
+            }
+
+            function persistRenderedSelection() {
+                writeStorage(STORAGE_KEYS.renderedSelection, JSON.stringify([...state.renderedModules]));
+            }
+
+            function persistCalendarState() {
+                persistSelection();
+                persistRenderedSelection();
+            }
+
+            function readStoredList(key) {
+                try {
+                    const value = JSON.parse(readStorage(key, "[]"));
+                    return Array.isArray(value)
+                        ? value.filter((item) => typeof item === "string" && item.trim())
+                        : [];
+                } catch {
+                    return [];
+                }
             }
 
             function readStorage(key, fallback) {
