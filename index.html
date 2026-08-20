@@ -884,6 +884,19 @@
             background: var(--surface-muted);
         }
 
+        .agenda-event.is-conflict {
+            background: var(--danger-soft);
+            box-shadow: inset 4px 0 0 var(--danger);
+        }
+
+        .agenda-event.is-conflict:hover {
+            background: var(--danger-soft);
+        }
+
+        .agenda-event.is-conflict .agenda-time {
+            color: var(--danger);
+        }
+
         .agenda-event:last-child {
             border-bottom: 0;
         }
@@ -1837,6 +1850,7 @@
                 const grouped = groupBy(events, "dateIso");
                 Object.keys(grouped).sort().forEach((dateIso) => {
                     const dayEvents = grouped[dateIso].sort(compareEvents);
+                    const conflictIds = getConflictingEventIds(dayEvents);
                     const section = document.createElement("section");
                     section.className = "day-agenda";
                     const header = document.createElement("header");
@@ -1851,7 +1865,7 @@
                     dayEvents.forEach((event) => {
                         const row = document.createElement("button");
                         row.type = "button";
-                        row.className = "agenda-event";
+                        row.className = `agenda-event${conflictIds.has(event.id) ? " is-conflict" : ""}`;
                         row.addEventListener("click", () => showEventDialog(event));
 
                         const time = document.createElement("div");
