@@ -1065,9 +1065,10 @@
                 state.lastLoadedVia = via;
                 restoreSelection();
                 applyPendingSelection();
+                const renderedSelection = resolveSelectionTokens([...state.renderedModules]);
                 state.renderedModules = state.autoBuild && state.selectedModules.size
                     ? new Set(state.selectedModules)
-                    : new Set([...state.renderedModules].filter((name) => state.selectedModules.has(name)));
+                    : new Set(renderedSelection.filter((id) => state.selectedModules.has(id)));
                 state.visibleWeekStart = chooseInitialWeek(getRenderedEvents()) || chooseInitialWeek(state.events);
 
                 renderModuleList();
@@ -1126,9 +1127,12 @@
             function buildModules(events) {
                 const map = new Map();
                 events.forEach((event) => {
-                    if (!map.has(event.course)) {
-                        map.set(event.course, {
+                    const moduleId = createModuleId(event);
+                    if (!map.has(moduleId)) {
+                        map.set(moduleId, {
+                            id: moduleId,
                             name: event.course,
+                            lecturer: event.lecturer || "ohne Dozent",
                             count: 0,
                             firstDate: event.dateIso,
                             groups: new Set(),
@@ -1137,27 +1141,30 @@
                             colorIndex: map.size % COLOR_PALETTE.length
                         });
                     }
-                    const module = map.get(event.course);
+                    const module = map.get(moduleId);
+                    event.moduleId = moduleId;
+                    event.colorIndex = module.colorIndex;
                     module.count += 1;
                     module.firstDate = module.firstDate < event.dateIso ? module.firstDate : event.dateIso;
                     splitList(event.groups).forEach((group) => module.groups.add(group));
                     splitList(event.lecturer).forEach((lecturer) => module.lecturers.add(lecturer));
                     splitList(event.room).forEach((room) => module.rooms.add(room));
-                    event.colorIndex = module.colorIndex;
                 });
 
-                return [...map.values()].sort((a, b) => a.name.localeCompare(b.name, "de"));
+                return [...map.values()].sort((a, b) => {
+                    return a.name.localeCompare(b.name, "de") || a.lecturer.localeCompare(b.lecturer, "de");
+                });
             }
 
             function restoreSelection() {
-                const available = new Set(state.modules.map((module) => module.name));
+                const available = new Set(state.modules.map((module) => module.id));
                 let saved = [];
                 try {
                     saved = JSON.parse(readStorage(STORAGE_KEYS.selection, "[]"));
                 } catch {
                     saved = [];
                 }
-                const merged = new Set([...state.selectedModules, ...saved].filter((name) => available.has(name)));
+                const merged = new Set(resolveSelectionTokens([...state.selectedModules, ...saved]).filter((id) => available.has(id)));
                 state.selectedModules = merged;
             }
 
@@ -1165,10 +1172,30 @@
                 if (!state.pendingSelection.length) return;
                 const targets = state.pendingSelection.map(normalizeSearch);
                 state.selectedModules = new Set(state.modules
-                    .filter((module) => targets.some((target) => normalizeSearch(module.name).includes(target)))
-                    .map((module) => module.name));
+                    .filter((module) => targets.some((target) => normalizeSearch(getModuleLabel(module)).includes(target)))
+                    .map((module) => module.id));
                 state.pendingSelection = [];
                 persistSelection();
+            }
+
+            function createModuleId(event) {
+                return `${event.course}@@${event.lecturer || "ohne Dozent"}`;
+            }
+
+            function getModuleLabel(module) {
+                return `${module.name} · ${module.lecturer}`;
+            }
+
+            function resolveSelectionTokens(tokens) {
+                const ids = new Set(state.modules.map((module) => module.id));
+                const labels = new Map(state.modules.map((module) => [getModuleLabel(module), module.id]));
+                return tokens.flatMap((token) => {
+                    if (ids.has(token)) return [token];
+                    if (labels.has(token)) return [labels.get(token)];
+
+                    const exactNameMatches = state.modules.filter((module) => module.name === token);
+                    return exactNameMatches.length === 1 ? [exactNameMatches[0].id] : [];
+                });
             }
 
             function renderModuleList() {
@@ -1197,12 +1224,12 @@
 
                 const input = document.createElement("input");
                 input.type = "checkbox";
-                input.checked = state.selectedModules.has(module.name);
+                input.checked = state.selectedModules.has(module.id);
                 input.addEventListener("change", () => {
                     if (input.checked) {
-                        state.selectedModules.add(module.name);
+                        state.selectedModules.add(module.id);
                     } else {
-                        state.selectedModules.delete(module.name);
+                        state.selectedModules.delete(module.id);
                     }
                     persistSelection();
                     updateSelectionSummary();
@@ -1219,7 +1246,7 @@
                 name.textContent = module.name;
                 const meta = document.createElement("span");
                 meta.className = "module-meta";
-                meta.textContent = `${module.count} Termine · ${compactSet(module.groups, 3)} · ${compactSet(module.lecturers, 2)}`;
+                meta.textContent = `Dozent: ${module.lecturer} · ${module.count} Termine · ${compactSet(module.groups, 3)}`;
                 body.append(name, meta);
 
                 label.append(input, dot, body);
@@ -1235,7 +1262,7 @@
 
             function selectVisibleModules() {
                 getFilteredModules(normalizeSearch(els.moduleSearch.value)).forEach((module) => {
-                    state.selectedModules.add(module.name);
+                    state.selectedModules.add(module.id);
                 });
                 persistSelection();
                 renderModuleList();
@@ -1286,7 +1313,7 @@
                 const conflicts = countConflicts(selectedEvents);
                 const moduleCount = state.renderedModules.size;
                 els.calendarTitle.textContent = `${formatShortDate(weekStart)} - ${formatShortDate(weekEnd)}`;
-                els.calendarSummary.textContent = `${selectedEvents.length} Termine aus ${moduleCount} ${moduleCount === 1 ? "Modul" : "Modulen"}`;
+                els.calendarSummary.textContent = `${selectedEvents.length} Termine aus ${moduleCount} ${moduleCount === 1 ? "Angebot" : "Angeboten"}`;
 
                 if (conflicts) {
                     showNotice(`${conflicts} zeitliche Überschneidung${conflicts === 1 ? "" : "en"} in der aktuellen Auswahl.`);
@@ -1518,7 +1545,7 @@
             function getRenderedEvents() {
                 if (!state.renderedModules.size) return [];
                 return state.events
-                    .filter((event) => state.renderedModules.has(event.course))
+                    .filter((event) => state.renderedModules.has(event.moduleId))
                     .sort(compareEvents);
             }
 
@@ -1526,7 +1553,9 @@
                 if (!query) return state.modules;
                 return state.modules.filter((module) => {
                     const haystack = normalizeSearch([
+                        getModuleLabel(module),
                         module.name,
+                        module.lecturer,
                         ...module.groups,
                         ...module.lecturers,
                         ...module.rooms
@@ -1540,9 +1569,9 @@
                 if (!state.modules.length) {
                     els.selectionSummary.textContent = "Noch keine Daten geladen.";
                 } else if (!selected) {
-                    els.selectionSummary.textContent = `${state.modules.length} Module gefunden.`;
+                    els.selectionSummary.textContent = `${state.modules.length} Modulangebote gefunden.`;
                 } else {
-                    els.selectionSummary.textContent = `${selected} von ${state.modules.length} Modulen ausgewählt.`;
+                    els.selectionSummary.textContent = `${selected} von ${state.modules.length} Angeboten ausgewählt.`;
                 }
             }
 
