@@ -1216,11 +1216,13 @@
                 const map = new Map();
                 events.forEach((event) => {
                     const moduleId = createModuleId(event);
+                    const studyGroup = getStudyGroupLabel(event.groups);
                     if (!map.has(moduleId)) {
                         map.set(moduleId, {
                             id: moduleId,
                             name: event.course,
                             lecturer: event.lecturer || "ohne Dozent",
+                            studyGroup,
                             count: 0,
                             firstDate: event.dateIso,
                             groups: new Set(),
@@ -1240,7 +1242,9 @@
                 });
 
                 return [...map.values()].sort((a, b) => {
-                    return a.name.localeCompare(b.name, "de") || a.lecturer.localeCompare(b.lecturer, "de");
+                    return a.name.localeCompare(b.name, "de")
+                        || a.lecturer.localeCompare(b.lecturer, "de")
+                        || a.studyGroup.localeCompare(b.studyGroup, "de");
                 });
             }
 
@@ -1267,11 +1271,24 @@
             }
 
             function createModuleId(event) {
-                return `${event.course}@@${event.lecturer || "ohne Dozent"}`;
+                return `${event.course}@@${event.lecturer || "ohne Dozent"}@@${getStudyGroupLabel(event.groups)}`;
+            }
+
+            function getStudyGroupLabel(groups) {
+                const values = splitList(groups).sort((a, b) => a.localeCompare(b, "de"));
+                return values.length ? values.join(", ") : "ohne Studiengruppe";
             }
 
             function getModuleLabel(module) {
+                return `${getLegacyModuleLabel(module)} · ${module.studyGroup}`;
+            }
+
+            function getLegacyModuleLabel(module) {
                 return `${module.name} · ${module.lecturer}`;
+            }
+
+            function getLegacyModuleId(module) {
+                return `${module.name}@@${module.lecturer || "ohne Dozent"}`;
             }
 
             function resolveSelectionTokens(tokens) {
@@ -1280,6 +1297,12 @@
                 return tokens.flatMap((token) => {
                     if (ids.has(token)) return [token];
                     if (labels.has(token)) return [labels.get(token)];
+
+                    const exactLegacyIdMatches = state.modules.filter((module) => getLegacyModuleId(module) === token);
+                    if (exactLegacyIdMatches.length === 1) return [exactLegacyIdMatches[0].id];
+
+                    const exactLegacyLabelMatches = state.modules.filter((module) => getLegacyModuleLabel(module) === token);
+                    if (exactLegacyLabelMatches.length === 1) return [exactLegacyLabelMatches[0].id];
 
                     const exactNameMatches = state.modules.filter((module) => module.name === token);
                     return exactNameMatches.length === 1 ? [exactNameMatches[0].id] : [];
@@ -1334,7 +1357,7 @@
                 name.textContent = module.name;
                 const meta = document.createElement("span");
                 meta.className = "module-meta";
-                meta.textContent = `Dozent: ${module.lecturer} · ${module.count} Termine · ${compactSet(module.groups, 3)}`;
+                meta.textContent = `Dozent: ${module.lecturer} · Studiengruppe: ${module.studyGroup} · ${formatTermCount(module.count)}`;
                 body.append(name, meta);
 
                 label.append(input, dot, body);
@@ -1490,9 +1513,9 @@
                 title.textContent = event.course;
                 const time = document.createElement("span");
                 time.textContent = `${event.start} - ${event.end} · ${event.room || "Raum offen"}`;
-                const lecturer = document.createElement("small");
-                lecturer.textContent = event.lecturer || event.groups || event.type;
-                card.append(title, time, lecturer);
+                const details = document.createElement("small");
+                details.textContent = [event.lecturer, event.groups].filter(Boolean).join(" · ") || event.type;
+                card.append(title, time, details);
                 card.addEventListener("click", () => showEventDialog(event));
                 return card;
             }
@@ -1674,6 +1697,7 @@
                         getModuleLabel(module),
                         module.name,
                         module.lecturer,
+                        module.studyGroup,
                         ...module.groups,
                         ...module.lecturers,
                         ...module.rooms
@@ -1735,7 +1759,8 @@
             }
 
             function formatConflictEvent(event) {
-                return `${event.course} (${event.lecturer || "ohne Dozent"}, ${event.room || "Raum offen"})`;
+                const details = [event.lecturer || "ohne Dozent", event.groups, event.room || "Raum offen"].filter(Boolean).join(", ");
+                return `${event.course} (${details})`;
             }
 
             function hideConflictPanel() {
@@ -1918,11 +1943,8 @@
                 return cleanText(value).split(",").map((item) => item.trim()).filter(Boolean);
             }
 
-            function compactSet(set, limit) {
-                const values = [...set].filter(Boolean);
-                if (!values.length) return "ohne Angabe";
-                const visible = values.slice(0, limit).join(", ");
-                return values.length > limit ? `${visible} +${values.length - limit}` : visible;
+            function formatTermCount(count) {
+                return `${count} ${count === 1 ? "Termin" : "Termine"}`;
             }
 
             function groupBy(items, key) {
