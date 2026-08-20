@@ -283,21 +283,6 @@
             min-width: 0;
         }
 
-        .source-details {
-            margin-top: 12px;
-            color: var(--muted);
-            font-size: 0.86rem;
-        }
-
-        .source-details summary {
-            cursor: pointer;
-            font-weight: 700;
-        }
-
-        .source-details label {
-            margin-top: 12px;
-        }
-
         .file-picker {
             display: flex;
             align-items: center;
@@ -787,11 +772,7 @@
                     <button id="loadUrlButton" class="small-button" type="button">Laden</button>
                 </div>
 
-                <details class="source-details">
-                    <summary>Proxy</summary>
-                    <label for="proxyPrefix">Proxy-Präfix</label>
-                    <input id="proxyPrefix" type="text" spellcheck="false" placeholder="Automatisch: https://proxy.cors.sh/">
-                </details>
+                <input id="proxyPrefix" type="hidden">
 
                 <label class="file-picker" for="fileInput">
                     HTML-Datei laden
@@ -997,7 +978,7 @@
                         renderModuleList();
                         renderCalendar();
                     }
-                    setSourceStatus("Direkter Abruf und Proxy-Fallback sind nicht erreichbar. HTML-Datei laden oder ein eigenes Proxy-Präfix eintragen.", "error");
+                    setSourceStatus("Stundenplan konnte nicht automatisch geladen werden. HTML-Datei laden oder später erneut versuchen.", "error");
                     console.warn(error);
                 } finally {
                     setLoading(false);
@@ -1005,11 +986,11 @@
             }
 
             async function fetchSchedule(sourceUrl, proxyPrefix) {
-                const attempts = [{ via: "Direktabruf", url: sourceUrl }];
+                const attempts = [{ via: "Abruf 1", url: sourceUrl }];
                 if (proxyPrefix) {
-                    attempts.push({ via: "Eigener Proxy", url: buildProxyUrl(proxyPrefix, sourceUrl) });
+                    attempts.push({ via: "Abruf 2", url: buildProxyUrl(proxyPrefix, sourceUrl) });
                 }
-                attempts.push({ via: "Automatischer Proxy", url: DEFAULT_PROXY_PREFIX + sourceUrl });
+                attempts.push({ via: "Abruf 3", url: DEFAULT_PROXY_PREFIX + sourceUrl });
 
                 let lastError = null;
                 for (const attempt of attempts) {
@@ -1093,7 +1074,7 @@
                 updateBuildButton();
                 renderCalendar();
 
-                const meta = [parsed.title, parsed.stand ? `Stand: ${parsed.stand}` : "", `${parsed.events.length} Termine`, via].filter(Boolean).join(" · ");
+                const meta = [parsed.title, parsed.stand ? `Stand: ${parsed.stand}` : "", `${parsed.events.length} Termine`].filter(Boolean).join(" · ");
                 setSourceStatus(meta, "ok");
             }
 
