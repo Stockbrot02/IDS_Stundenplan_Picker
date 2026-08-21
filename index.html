@@ -2142,7 +2142,8 @@
                     "X-WR-CALNAME:Stundenplan Picker"
                 ];
 
-                events.forEach((event) => {
+                const stamp = toIcsStamp(new Date());
+                events.forEach((event, index) => {
                     const description = [
                         event.type ? `Art: ${event.type}` : "",
                         event.lecturer ? `Dozent: ${event.lecturer}` : "",
@@ -2150,8 +2151,8 @@
                     ].filter(Boolean).join("\\n");
                     lines.push(
                         "BEGIN:VEVENT",
-                        `UID:${escapeIcs(`${event.id}-${event.dateIso}@stundenplan-picker`)}`,
-                        `DTSTAMP:${toIcsStamp(new Date())}`,
+                        `UID:${escapeIcs(createIcsUid(event, index))}`,
+                        `DTSTAMP:${stamp}`,
                         `DTSTART;TZID=Europe/Berlin:${toIcsLocal(event.dateIso, event.start)}`,
                         `DTEND;TZID=Europe/Berlin:${toIcsLocal(event.dateIso, event.end)}`,
                         `SUMMARY:${escapeIcs(event.course)}`,
@@ -2162,7 +2163,7 @@
                 });
 
                 lines.push("END:VCALENDAR");
-                const blob = new Blob([lines.join("\r\n")], { type: "text/calendar;charset=utf-8" });
+                const blob = new Blob([lines.map(foldIcsLine).join("\r\n")], { type: "text/calendar;charset=utf-8" });
                 const url = URL.createObjectURL(blob);
                 const anchor = document.createElement("a");
                 anchor.href = url;
@@ -2240,6 +2241,31 @@
                 return `${dateIso.replaceAll("-", "")}T${time.replace(":", "")}00`;
             }
 
+            function createIcsUid(event, index) {
+                const fingerprint = [
+                    index,
+                    event.id,
+                    event.moduleId,
+                    event.dateIso,
+                    event.start,
+                    event.end,
+                    event.course,
+                    event.lecturer,
+                    event.room,
+                    event.groups
+                ].map(cleanText).join("|");
+                return `${event.dateIso}-${event.start.replace(":", "")}-${hashString(fingerprint)}@stundenplan-picker`;
+            }
+
+            function hashString(value) {
+                let hash = 0x811c9dc5;
+                for (let index = 0; index < value.length; index += 1) {
+                    hash ^= value.charCodeAt(index);
+                    hash = Math.imul(hash, 0x01000193);
+                }
+                return (hash >>> 0).toString(36);
+            }
+
             function toIcsStamp(date) {
                 return date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
             }
@@ -2250,6 +2276,24 @@
                     .replaceAll(";", "\\;")
                     .replaceAll(",", "\\,")
                     .replace(/\r?\n/g, "\\n");
+            }
+
+            function foldIcsLine(line) {
+                const encoder = new TextEncoder();
+                const chunks = [];
+                let current = "";
+
+                for (const char of String(line)) {
+                    if (current && encoder.encode(current + char).length > 73) {
+                        chunks.push(current);
+                        current = ` ${char}`;
+                    } else {
+                        current += char;
+                    }
+                }
+
+                chunks.push(current);
+                return chunks.join("\r\n");
             }
 
             function startOfWeek(date) {
