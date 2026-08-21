@@ -2246,7 +2246,8 @@
             }
 
             function toIcsLocal(dateIso, time) {
-                return `${dateIso.replaceAll("-", "")}T${time.replace(":", "")}00`;
+                const [hours = "0", minutes = "0", seconds = "0"] = String(time || "").split(":");
+                return `${dateIso.replaceAll("-", "")}T${hours.padStart(2, "0")}${minutes.padStart(2, "0")}${seconds.padStart(2, "0")}`;
             }
 
             function getBerlinTimezoneLines() {
